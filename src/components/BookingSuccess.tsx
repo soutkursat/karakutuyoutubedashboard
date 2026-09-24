@@ -12,7 +12,7 @@ export function BookingSuccess({ appt, onClose }: { appt: Appointment | null; on
   const notify = () => {
     if (!student) return
     openWhatsapp(waLink(getSettings().whatsappNumber, newBookingMessage(appt, student)))
-    markWhatsappNotified(appt.id)
+    void markWhatsappNotified(appt.id)
     onClose()
   }
   return (

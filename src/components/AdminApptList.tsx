@@ -17,12 +17,20 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
   const [cancelFor, setCancelFor] = useState<Appointment | null>(null)
   const [reason, setReason] = useState('')
 
-  const run = (fn: () => void, ok: string) => {
+  const [busy, setBusy] = useState(false)
+  /** Sunucu işlemini çalıştır; aynı anda ikinci tıklamayı engelle. Başarılıysa true döner. */
+  const run = async (fn: () => Promise<unknown>, ok: string) => {
+    if (busy) return false
+    setBusy(true)
     try {
-      fn()
+      await fn()
       toast(ok)
+      return true
     } catch (e) {
       toast(errMsg(e), 'error')
+      return false
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -62,7 +70,7 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
               actions={
                 <>
                   {a.status === 'pending' && (
-                    <button className="btn btn-primary btn-sm" onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu onaylandı')}>
+                    <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu onaylandı')}>
                       <IconCheck size={16} /> Onayla
                     </button>
                   )}
@@ -72,7 +80,7 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                     </button>
                   )}
                   {active && past && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => run(() => setAppointmentStatus(a.id, 'completed'), 'Tamamlandı olarak işaretlendi')}>
+                    <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => run(() => setAppointmentStatus(a.id, 'completed'), 'Tamamlandı olarak işaretlendi')}>
                       <IconCheck size={16} /> Tamamlandı
                     </button>
                   )}
@@ -87,7 +95,7 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                     </button>
                   )}
                   {a.status === 'cancelled' && !past && (
-                    <button className="btn btn-text btn-sm" onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu geri açıldı')}>
+                    <button className="btn btn-text btn-sm" disabled={busy} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu geri açıldı')}>
                       Geri al
                     </button>
                   )}
@@ -108,16 +116,14 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
             <button className="btn btn-ghost" onClick={() => setMeetFor(null)}>Vazgeç</button>
             <button
               className="btn btn-primary"
-              onClick={() => {
+              disabled={busy}
+              onClick={async () => {
                 if (!meetFor) return
-                try {
-                  setMeetLink(meetFor.id, link)
-                  if (meetFor.status === 'pending' && link.trim()) setAppointmentStatus(meetFor.id, 'confirmed')
-                  toast('Meet linki kaydedildi')
-                  setMeetFor(null)
-                } catch (e) {
-                  toast(errMsg(e), 'error')
-                }
+                const ok = await run(async () => {
+                  await setMeetLink(meetFor.id, link)
+                  if (meetFor.status === 'pending' && link.trim()) await setAppointmentStatus(meetFor.id, 'confirmed')
+                }, 'Meet linki kaydedildi')
+                if (ok) setMeetFor(null)
               }}
             >
               Kaydet
@@ -145,10 +151,11 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
             <button className="btn btn-ghost" onClick={() => setCancelFor(null)}>Vazgeç</button>
             <button
               className="btn btn-danger"
-              onClick={() => {
+              disabled={busy}
+              onClick={async () => {
                 if (!cancelFor) return
-                run(() => setAppointmentStatus(cancelFor.id, 'cancelled', reason), 'Randevu iptal edildi')
-                setCancelFor(null)
+                const ok = await run(() => setAppointmentStatus(cancelFor.id, 'cancelled', reason), 'Randevu iptal edildi')
+                if (ok) setCancelFor(null)
               }}
             >
               İptal et

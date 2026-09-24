@@ -9,8 +9,6 @@ export interface User {
   email: string
   username?: string
   phone: string
-  passwordHash: string
-  salt: string
   status: UserStatus
   createdAt: string
   adminNote?: string
@@ -55,11 +53,14 @@ export interface Settings {
   defaultMeetLink: string
   autoConfirm: boolean
   registrationOpen: boolean
+  /** Sadece yönetici görür (ayrı, gizli tabloda tutulur) */
   inviteCode: string
   topics: string[]
 }
 
-export interface Session {
-  userId: string
-  expiresAt: number
+/** Dolu saat (kimin aldığı öğrenciye gösterilmez) */
+export interface Busy {
+  start: string
+  end: string
+  mine: boolean
 }

@@ -10,25 +10,34 @@ export function ProfilePage() {
   const toast = useToast()
   const [p, setP] = useState({ name: user.name, email: user.email, phone: formatPhone(user.phone) })
   const [pw, setPw] = useState({ current: '', next: '', next2: '' })
+  const [busy, setBusy] = useState(false)
 
-  const saveProfile = (e: FormEvent) => {
+  const saveProfile = async (e: FormEvent) => {
     e.preventDefault()
+    if (busy) return
+    setBusy(true)
     try {
-      updateProfile(user.id, p)
+      await updateProfile(user.id, p)
       toast('Profil güncellendi')
     } catch (err) {
       toast(errMsg(err), 'error')
+    } finally {
+      setBusy(false)
     }
   }
-  const savePw = (e: FormEvent) => {
+  const savePw = async (e: FormEvent) => {
     e.preventDefault()
+    if (busy) return
+    setBusy(true)
     try {
       if (pw.next !== pw.next2) throw new Error('Yeni şifreler eşleşmiyor.')
-      changePassword(user.id, pw.current, pw.next)
+      await changePassword(user.id, pw.current, pw.next)
       setPw({ current: '', next: '', next2: '' })
       toast('Şifren değiştirildi')
     } catch (err) {
       toast(errMsg(err), 'error')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -48,14 +57,14 @@ export function ProfilePage() {
               <input className="input" value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} />
             </Field>
             {user.role === 'student' && (
-              <Field label="E-posta">
-                <input className="input" type="email" value={p.email} onChange={(e) => setP({ ...p, email: e.target.value })} />
+              <Field label="E-posta" hint="E-posta değişikliği için bizimle iletişime geç.">
+                <input className="input" type="email" value={p.email} disabled />
               </Field>
             )}
             <Field label="WhatsApp numarası">
               <input className="input" type="tel" value={p.phone} onChange={(e) => setP({ ...p, phone: e.target.value })} />
             </Field>
-            <button className="btn btn-primary">Kaydet</button>
+            <button className="btn btn-primary" disabled={busy}>Kaydet</button>
           </div>
         </form>
         <form className="card glass" onSubmit={savePw}>
@@ -70,7 +79,7 @@ export function ProfilePage() {
             <Field label="Yeni şifre (tekrar)">
               <PasswordInput autoComplete="new-password" value={pw.next2} onChange={(e) => setPw({ ...pw, next2: e.target.value })} />
             </Field>
-            <button className="btn btn-ghost">Şifreyi güncelle</button>
+            <button className="btn btn-ghost" disabled={busy}>Şifreyi güncelle</button>
           </div>
         </form>
       </div>

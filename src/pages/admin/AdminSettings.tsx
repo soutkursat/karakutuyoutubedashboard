@@ -13,13 +13,18 @@ export function AdminSettings() {
   const [topic, setTopic] = useState('')
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS((p) => ({ ...p, [k]: v }))
 
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
+    if (saving) return
+    setSaving(true)
     try {
-      saveSettings(structuredClone(s))
+      await saveSettings(structuredClone(s))
       setS(structuredClone(getSettings()))
       toast('Ayarlar kaydedildi')
     } catch (e) {
       toast(errMsg(e), 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -35,7 +40,7 @@ export function AdminSettings() {
 
   return (
     <>
-      <PageHeader eyebrow="Yönetim" title="Ayarlar" actions={<button className="btn btn-primary" onClick={save}>Kaydet</button>} />
+      <PageHeader eyebrow="Yönetim" title="Ayarlar" actions={<button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Kaydediliyor…' : 'Kaydet'}</button>} />
       <div className="grid-2 align-start">
         <section className="card glass">
           <h3 className="card-title"><IconWhatsapp size={18} /> Bildirim & görüşme</h3>
@@ -96,8 +101,8 @@ export function AdminSettings() {
         <section className="card glass">
           <h3 className="card-title"><IconDownload size={18} /> Yedek</h3>
           <p className="muted">
-            Taslak sürümde veriler bu tarayıcıda saklanıyor. Önemli verileri kaybetmemek için düzenli yedek al
-            (şifreler yedeğe dahil edilmez).
+            Veriler Supabase’de güvenle saklanıyor. İstersen öğrenci ve randevu listesinin bir kopyasını
+            JSON olarak indirebilirsin.
           </p>
           <button className="btn btn-ghost" onClick={download}><IconDownload size={16} /> JSON yedeği indir</button>
         </section>

@@ -32,14 +32,19 @@ export function AdminAvailability() {
   }
   const weeklyTotal = ORDER.reduce((sum, d) => sum + (s.weekly[d] ?? []).reduce((x, r) => x + slotsInRange(r.start, r.end), 0), 0)
 
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
+    if (saving) return
+    setSaving(true)
     try {
-      saveSettings(structuredClone(s))
+      await saveSettings(structuredClone(s))
       setS(structuredClone(getSettings()))
       setDirty(false)
       toast('Müsaitlik kaydedildi')
     } catch (e) {
       toast(errMsg(e), 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -52,8 +57,8 @@ export function AdminAvailability() {
         title="Müsaitlik"
         desc="Haftalık çalışma saatlerini belirle; sistem bu aralıkları otomatik olarak randevu slotlarına böler."
         actions={
-          <button className="btn btn-primary" onClick={save} disabled={!dirty}>
-            {dirty ? 'Değişiklikleri kaydet' : 'Kaydedildi'}
+          <button className="btn btn-primary" onClick={save} disabled={!dirty || saving}>
+            {saving ? 'Kaydediliyor…' : dirty ? 'Değişiklikleri kaydet' : 'Kaydedildi'}
           </button>
         }
       />

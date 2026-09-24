@@ -20,8 +20,8 @@ export function AppShell({ user, nav, area }: { user: User; nav: NavItem[]; area
   const navigate = useNavigate()
   useEffect(() => setOpen(false), [loc.pathname])
 
-  const doLogout = () => {
-    logout()
+  const doLogout = async () => {
+    await logout()
     navigate('/giris', { replace: true })
   }
 

@@ -4,7 +4,7 @@ import { Field, PageHeader } from '../../components/Common'
 import { BookingSuccess } from '../../components/BookingSuccess'
 import { IconCalendarPlus, IconClock, IconVideo } from '../../components/Icons'
 import { useToast } from '../../components/Toast'
-import { bookAppointment, currentUser, getAppointments, getSettings } from '../../lib/db'
+import { bookAppointment, currentUser, getAppointments, getBusy, getSettings } from '../../lib/db'
 import { useDataVersion, useNow } from '../../lib/hooks'
 import { activeAppointments, buildSlots } from '../../lib/slots'
 import { WEEKDAYS_SHORT, formatKeyDayMonth, formatKeyLong, formatTime, formatDateLong, weekdayOf } from '../../lib/time'
@@ -20,7 +20,7 @@ export function BookPage() {
   const settings = getSettings()
   const appts = getAppointments()
 
-  const days = buildSlots(settings, appts, now, user.id)
+  const days = buildSlots(settings, getBusy(), now)
   const firstOpen = days.find((d) => d.slots.some((s) => s.available))?.key ?? days[0]?.key
   const [dayKey, setDayKey] = useState<string | undefined>(undefined)
   const selectedDay = days.find((d) => d.key === (dayKey ?? firstOpen))
@@ -36,11 +36,11 @@ export function BookPage() {
   const slotStillFree = !!slot && days.some((d) => d.slots.some((s) => s.start === slot && s.available))
   const chosen = slotStillFree ? slot : null
 
-  const submit = () => {
+  const submit = async () => {
     if (!chosen || busy) return
     setBusy(true)
     try {
-      const a = bookAppointment({ studentId: user.id, start: chosen, topic, note })
+      const a = await bookAppointment({ studentId: user.id, start: chosen, topic, note })
       setDone(a)
       setSlot(null)
       setNote('')
@@ -174,7 +174,7 @@ export function BookPage() {
           </Field>
 
           <button className="btn btn-primary btn-lg btn-block" disabled={!chosen || !topic || busy || limitReached} onClick={submit}>
-            Randevuyu oluştur
+            {busy ? 'Oluşturuluyor…' : 'Randevuyu oluştur'}
           </button>
           <p className="fine">
             <IconVideo size={14} /> Google Meet linki randevu onaylanınca panelinde görünür.

@@ -1,4 +1,4 @@
-import type { Appointment, Settings } from './types'
+import type { Appointment, Busy, Settings } from './types'
 import { addDays, dateKey, fromMinutes, toInstant, toMinutes, weekdayOf } from './time'
 
 export interface Slot {
@@ -20,13 +20,12 @@ export function activeAppointments(list: Appointment[]) {
   return list.filter((a) => a.status === 'pending' || a.status === 'confirmed')
 }
 
-/** Müsaitlik ayarlarından ileriye dönük tüm slotları üretir. */
-export function buildSlots(settings: Settings, appointments: Appointment[], now: number, viewerId?: string): DaySlots[] {
-  const busy = activeAppointments(appointments).map((a) => ({
-    s: new Date(a.start).getTime(),
-    e: new Date(a.end).getTime(),
-    mine: a.studentId === viewerId,
-  }))
+/**
+ * Müsaitlik ayarlarından ileriye dönük tüm slotları üretir.
+ * Not: Bu sadece gösterim içindir; asıl kontrol sunucudaki book_appointment fonksiyonundadır.
+ */
+export function buildSlots(settings: Settings, busyList: Busy[], now: number): DaySlots[] {
+  const busy = busyList.map((b) => ({ s: new Date(b.start).getTime(), e: new Date(b.end).getTime(), mine: b.mine }))
   const earliest = now + settings.minNoticeHours * 3600_000
   const today = dateKey(new Date(now))
   const days: DaySlots[] = []
@@ -62,10 +61,4 @@ export function buildSlots(settings: Settings, appointments: Appointment[], now:
     days.push({ key, slots, blocked })
   }
   return days
-}
-
-export function isSlotBookable(settings: Settings, appointments: Appointment[], startIso: string, now: number): boolean {
-  const key = dateKey(new Date(startIso))
-  const day = buildSlots(settings, appointments, now).find((d) => d.key === key)
-  return !!day?.slots.some((s) => s.start === startIso && s.available)
 }

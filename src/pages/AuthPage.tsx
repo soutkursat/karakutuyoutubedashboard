@@ -4,36 +4,48 @@ import { Brand } from '../components/Brand'
 import { Field, PasswordInput } from '../components/Common'
 import { IconArrowRight, IconCalendarPlus, IconVideo, IconWhatsapp } from '../components/Icons'
 import { homeFor } from '../components/Guard'
-import { currentUser, getSettings, login, register } from '../lib/db'
+import { currentUser, getPublicConfig, isReady, login, register } from '../lib/db'
+import { Loader } from '../components/Screens'
+import { useDataVersion } from '../lib/hooks'
 import { cx, errMsg } from '../lib/ui'
 
 type Tab = 'login' | 'register'
 
 export function AuthPage() {
+  useDataVersion()
   const navigate = useNavigate()
-  const settings = getSettings()
+  const settings = getPublicConfig()
   const [tab, setTab] = useState<Tab>('login')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [info, setInfo] = useState('')
   const [f, setF] = useState({ id: '', password: '', name: '', email: '', phone: '', password2: '', invite: '' })
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }))
 
+  if (!isReady()) return <Loader />
   const me = currentUser()
   if (me) return <Navigate to={homeFor(me)} replace />
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (busy) return
     setError('')
+    setInfo('')
     setBusy(true)
     try {
       if (tab === 'login') {
-        const u = login(f.id, f.password)
+        const u = await login(f.id, f.password)
         navigate(homeFor(u), { replace: true })
       } else {
         if (f.password !== f.password2) throw new Error('Şifreler birbiriyle eşleşmiyor.')
-        register({ name: f.name, email: f.email, phone: f.phone, password: f.password, inviteCode: f.invite })
-        navigate('/panel', { replace: true })
+        const { needsConfirm } = await register({ name: f.name, email: f.email, phone: f.phone, password: f.password, inviteCode: f.invite })
+        if (needsConfirm) {
+          setInfo(`Neredeyse bitti! ${f.email.trim()} adresine bir onay linki gönderdik. Linke tıkladıktan sonra giriş yapabilirsin.`)
+          setTab('login')
+          setF((s) => ({ ...s, id: s.email.trim(), password: '', password2: '' }))
+        } else {
+          navigate('/panel', { replace: true })
+        }
       }
     } catch (err) {
       setError(errMsg(err))
@@ -45,6 +57,7 @@ export function AuthPage() {
   const switchTab = (t: Tab) => {
     setTab(t)
     setError('')
+    setInfo('')
   }
 
   return (
@@ -118,7 +131,7 @@ export function AuthPage() {
                     <PasswordInput autoComplete="new-password" value={f.password2} onChange={set('password2')} />
                   </Field>
                 </div>
-                {settings.inviteCode && (
+                {settings.inviteRequired && (
                   <Field label="Davet kodu" hint="Mentörlük kaydında sana iletilen kod">
                     <input className="input" value={f.invite} onChange={set('invite')} />
                   </Field>
@@ -126,11 +139,12 @@ export function AuthPage() {
               </>
             )}
 
+            {info && <div className="notice notice-ok" role="status">{info}</div>}
             {error && <div className="form-error" role="alert">{error}</div>}
 
             {(tab === 'login' || settings.registrationOpen) && (
               <button className="btn btn-primary btn-lg btn-block" disabled={busy}>
-                {tab === 'login' ? 'Giriş yap' : 'Hesabımı oluştur'} <IconArrowRight size={18} />
+                {busy ? 'Lütfen bekle…' : tab === 'login' ? 'Giriş yap' : 'Hesabımı oluştur'} <IconArrowRight size={18} />
               </button>
             )}
           </form>

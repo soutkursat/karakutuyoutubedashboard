@@ -13,17 +13,29 @@ import { AdminAppointments } from './pages/admin/AdminAppointments'
 import { AdminAvailability } from './pages/admin/AdminAvailability'
 import { AdminStudents } from './pages/admin/AdminStudents'
 import { AdminSettings } from './pages/admin/AdminSettings'
-import { currentUser, getAppointments } from './lib/db'
+import { currentUser, getAppointments, isReady } from './lib/db'
+import { isConfigured } from './lib/supabase'
+import { Loader, SetupScreen } from './components/Screens'
 import { useDataVersion } from './lib/hooks'
 
 function RootRedirect() {
   useDataVersion()
+  if (!isReady()) return <Loader />
   return <Navigate to={homeFor(currentUser())} replace />
 }
 
 export function App() {
   useDataVersion()
-  const pending = getAppointments().filter((a) => a.status === 'pending').length
+  const pending = getAppointments().filter((a) => a.status === 'pending' && new Date(a.end).getTime() > Date.now()).length
+
+  if (!isConfigured) {
+    return (
+      <>
+        <div className="bg-fx" aria-hidden />
+        <SetupScreen />
+      </>
+    )
+  }
 
   return (
     <ToastProvider>

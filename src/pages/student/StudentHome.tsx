@@ -43,7 +43,7 @@ export function StudentHome() {
             onClick={() => {
               const a = unnotified[0]
               openWhatsapp(waLink(settings.whatsappNumber, newBookingMessage(a, user)))
-              markWhatsappNotified(a.id)
+              void markWhatsappNotified(a.id)
             }}
           >
             Şimdi bildir

@@ -20,6 +20,23 @@ export function AdminStudents() {
   const [edit, setEdit] = useState<User | 'new' | null>(null)
   const [form, setForm] = useState(EMPTY)
   const [del, setDel] = useState<User | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  /** Sunucu işlemi: çift tıklamayı engelle, hatayı göster. Başarılıysa true. */
+  const run = async (fn: () => Promise<unknown>, ok: string) => {
+    if (busy) return false
+    setBusy(true)
+    try {
+      await fn()
+      toast(ok)
+      return true
+    } catch (e) {
+      toast(errMsg(e), 'error')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const appts = getAppointments()
   const needle = q.trim().toLocaleLowerCase('tr-TR')
@@ -32,20 +49,16 @@ export function AdminStudents() {
     setForm(u === 'new' ? EMPTY : { name: u.name, email: u.email, phone: formatPhone(u.phone), password: '', adminNote: u.adminNote ?? '' })
   }
 
-  const save = () => {
-    try {
-      if (edit === 'new') {
-        adminCreateStudent(form)
-        toast('Öğrenci eklendi')
-      } else if (edit) {
-        adminUpdateStudent(edit.id, form)
-        if (form.password) adminResetPassword(edit.id, form.password)
-        toast('Öğrenci güncellendi')
-      }
-      setEdit(null)
-    } catch (e) {
-      toast(errMsg(e), 'error')
-    }
+  const save = async () => {
+    if (!edit) return
+    const ok =
+      edit === 'new'
+        ? await run(() => adminCreateStudent(form), 'Öğrenci eklendi')
+        : await run(async () => {
+            await adminUpdateStudent(edit.id, form)
+            if (form.password) await adminResetPassword(edit.id, form.password)
+          }, 'Öğrenci güncellendi')
+    if (ok) setEdit(null)
   }
 
   const f = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((s) => ({ ...s, [k]: e.target.value }))
@@ -95,14 +108,13 @@ export function AdminStudents() {
                         <button
                           className="icon-btn"
                           title={u.status === 'active' ? 'Askıya al' : 'Aktifleştir'}
-                          onClick={() => {
-                            try {
-                              setUserStatus(u.id, u.status === 'active' ? 'disabled' : 'active')
-                              toast(u.status === 'active' ? 'Hesap askıya alındı, gelecek randevuları iptal edildi' : 'Hesap aktifleştirildi')
-                            } catch (e) {
-                              toast(errMsg(e), 'error')
-                            }
-                          }}
+                          disabled={busy}
+                          onClick={() =>
+                            run(
+                              () => setUserStatus(u.id, u.status === 'active' ? 'disabled' : 'active'),
+                              u.status === 'active' ? 'Hesap askıya alındı, gelecek randevuları iptal edildi' : 'Hesap aktifleştirildi',
+                            )
+                          }
                         >
                           {u.status === 'active' ? <IconBan size={16} /> : <IconCheck size={16} />}
                         </button>
@@ -121,7 +133,7 @@ export function AdminStudents() {
         open={!!edit}
         onClose={() => setEdit(null)}
         title={edit === 'new' ? 'Yeni öğrenci' : 'Öğrenciyi düzenle'}
-        footer={<><button className="btn btn-ghost" onClick={() => setEdit(null)}>Vazgeç</button><button className="btn btn-primary" onClick={save}>Kaydet</button></>}
+        footer={<><button className="btn btn-ghost" onClick={() => setEdit(null)}>Vazgeç</button><button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? 'Kaydediliyor…' : 'Kaydet'}</button></>}
       >
         <div className="form">
           <Field label="Ad soyad"><input className="input" value={form.name} onChange={f('name')} /></Field>
@@ -150,15 +162,10 @@ export function AdminStudents() {
             <button className="btn btn-ghost" onClick={() => setDel(null)}>Vazgeç</button>
             <button
               className="btn btn-danger"
-              onClick={() => {
+              disabled={busy}
+              onClick={async () => {
                 if (!del) return
-                try {
-                  deleteStudent(del.id)
-                  toast('Öğrenci silindi')
-                } catch (e) {
-                  toast(errMsg(e), 'error')
-                }
-                setDel(null)
+                if (await run(() => deleteStudent(del.id), 'Öğrenci silindi')) setDel(null)
               }}
             >
               Kalıcı olarak sil

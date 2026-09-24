@@ -33,15 +33,20 @@ export function MyAppointments() {
   }
   const list = lists[tab]
 
-  const confirmCancel = () => {
-    if (!cancelling) return
+  const [busy, setBusy] = useState(false)
+
+  const confirmCancel = async () => {
+    if (!cancelling || busy) return
+    setBusy(true)
     try {
-      const a = cancelByStudent(user.id, cancelling.id, reason)
+      const a = await cancelByStudent(user.id, cancelling.id, reason)
       setCancelling(null)
       setReason('')
       setCancelled(a)
     } catch (e) {
       toast(errMsg(e), 'error')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -92,7 +97,7 @@ export function MyAppointments() {
                       className={cx('btn btn-sm', a.whatsappNotifiedAt ? 'btn-ghost' : 'btn-wa')}
                       onClick={() => {
                         openWhatsapp(waLink(settings.whatsappNumber, newBookingMessage(a, user)))
-                        markWhatsappNotified(a.id)
+                        void markWhatsappNotified(a.id)
                       }}
                     >
                       <IconWhatsapp size={16} /> {a.whatsappNotifiedAt ? 'Tekrar bildir' : 'WhatsApp’tan bildir'}
@@ -120,7 +125,7 @@ export function MyAppointments() {
         footer={
           <>
             <button className="btn btn-ghost" onClick={() => setCancelling(null)}>Vazgeç</button>
-            <button className="btn btn-danger" onClick={confirmCancel}>İptal et</button>
+            <button className="btn btn-danger" onClick={confirmCancel} disabled={busy}>İptal et</button>
           </>
         }
       >
