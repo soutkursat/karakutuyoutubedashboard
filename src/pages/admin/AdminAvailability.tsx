@@ -151,6 +151,28 @@ export function AdminAvailability() {
           </section>
 
           <section className="card glass">
+            <h3 className="card-title">Randevu sıklığı</h3>
+            <p className="muted small-text">
+              Yeni üye ilk <strong>{s.introBookings}</strong> randevusunu <strong>{s.introGapDays}</strong> günde 1, sonrasında{' '}
+              <strong>{s.regularGapDays}</strong> günde 1 oluşturabilir. Süre son randevunun oluşturulduğu andan başlar; iptal edilen
+              randevular sayılmaz. Öğrenciler sayfasından bir öğrenciyi “eski öğrenci” yaparsan doğrudan {s.regularGapDays} günlük kurala geçer.
+            </p>
+            <div className="form">
+              <div className="grid-3">
+                <Field label="Yeni üye hakkı">
+                  <input className="input" type="number" min={0} max={20} value={s.introBookings} onChange={num('introBookings')} />
+                </Field>
+                <Field label="Yeni üye aralığı (gün)">
+                  <input className="input" type="number" min={0} max={60} value={s.introGapDays} onChange={num('introGapDays')} />
+                </Field>
+                <Field label="Sonraki aralık (gün)">
+                  <input className="input" type="number" min={0} max={90} value={s.regularGapDays} onChange={num('regularGapDays')} />
+                </Field>
+              </div>
+            </div>
+          </section>
+
+          <section className="card glass">
             <h3 className="card-title">Kapalı günler</h3>
             <p className="muted small-text">Tatil, seyahat gibi günleri kapat. Var olan randevular iptal edilmez.</p>
             <div className="inline-form">

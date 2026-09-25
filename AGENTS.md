@@ -27,6 +27,8 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
 - Saatler her zaman **Europe/Istanbul**. Tarih hesabı için `src/lib/time.ts` kullan, `new Date().getHours()` gibi
   yerel saat fonksiyonları KULLANMA.
 - Randevu slotları `src/lib/slots.ts` içinde üretilir; çakışma kontrolü de oradadır.
+- Randevu sıklığı kuralı iki yerde BİREBİR aynı olmalı: `book_appointment` (SQL, asıl kontrol) ve `src/lib/quota.ts` (arayüz).
+- Menü sayısını artırma: yeni özellikleri mevcut sayfalara kart/pencere olarak ekle (kullanıcı isteği).
 - WhatsApp mesaj şablonları `src/lib/whatsapp.ts` içinde. **Mesajlarda emoji kullanma** (WhatsApp Masaüstü/Web
   wa.me linkiyle gelen emojileri "�" olarak gösteriyor); sadece düz metin + `*kalın*`.
 - Google Takvim senkronu `api/_lib/google.ts` içinde (randevu → etkinlik + Meet, takvim → `external_busy`).

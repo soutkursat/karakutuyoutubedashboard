@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { Field, PageHeader } from '../../components/Common'
 import { BookingSuccess } from '../../components/BookingSuccess'
 import { IconCalendarPlus, IconClock, IconVideo } from '../../components/Icons'
+import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
 import { bookAppointment, currentUser, getAppointments, getBusy, getSettings } from '../../lib/db'
 import { useDataVersion, useNow } from '../../lib/hooks'
 import { activeAppointments, buildSlots } from '../../lib/slots'
+import { computeQuota, formatRemaining, quotaRuleText } from '../../lib/quota'
 import { WEEKDAYS_SHORT, formatKeyDayMonth, formatKeyLong, formatTime, formatDateLong, weekdayOf } from '../../lib/time'
 import type { Appointment } from '../../lib/types'
 import { cx, errMsg } from '../../lib/ui'
@@ -32,6 +34,10 @@ export function BookPage() {
 
   const activeCount = activeAppointments(appts).filter((a) => a.studentId === user.id && new Date(a.end).getTime() > now).length
   const limitReached = activeCount >= settings.maxActivePerStudent
+  const quota = computeQuota(user, appts, settings, now)
+  const blocked = limitReached || !quota.canBook
+  // Sayfaya hakkı dolmuş halde gelindiyse küçük pop-up ile kalan süreyi göster
+  const [quotaOpen, setQuotaOpen] = useState(() => !computeQuota(user, appts, settings).canBook)
   // Seçili slot bu arada dolduysa seçimi düşür
   const slotStillFree = !!slot && days.some((d) => d.slots.some((s) => s.start === slot && s.available))
   const chosen = slotStillFree ? slot : null
@@ -45,7 +51,9 @@ export function BookPage() {
       setSlot(null)
       setNote('')
     } catch (e) {
-      toast(errMsg(e), 'error')
+      // Hak dolduysa (başka sekmeden randevu alınmış olabilir) pop-up ile göster, değilse bildirim
+      if (!computeQuota(user, getAppointments(), getSettings()).canBook) setQuotaOpen(true)
+      else toast(errMsg(e), 'error')
     } finally {
       setBusy(false)
     }
@@ -64,7 +72,17 @@ export function BookPage() {
         }
       />
 
-      {limitReached && (
+      {!quota.canBook && quota.nextAt && (
+        <div className="notice notice-warn quota-notice">
+          <IconClock size={18} />
+          <span>
+            Yeni randevu hakkın <strong>{formatRemaining(quota.nextAt - now)}</strong> sonra açılacak
+            ({formatDateLong(new Date(quota.nextAt))} {formatTime(new Date(quota.nextAt))}).
+          </span>
+        </div>
+      )}
+
+      {quota.canBook && limitReached && (
         <div className="notice notice-warn">
           Aynı anda en fazla {settings.maxActivePerStudent} aktif randevun olabilir. Yeni randevu için mevcut randevunun tamamlanmasını
           bekle ya da <button className="link" onClick={() => navigate('/panel/randevularim')}>randevularından</button> birini iptal et.
@@ -118,7 +136,7 @@ export function BookPage() {
                   {selectedDay.slots.map((s) => (
                     <button
                       key={s.start}
-                      disabled={!s.available || limitReached}
+                      disabled={!s.available || blocked}
                       className={cx('slot', s.start === chosen && 'active', s.reason && `slot-${s.reason}`)}
                       onClick={() => setSlot(s.start)}
                       title={s.reason === 'notice' ? `En az ${settings.minNoticeHours} saat önceden randevu alınabilir` : undefined}
@@ -173,14 +191,44 @@ export function BookPage() {
             />
           </Field>
 
-          <button className="btn btn-primary btn-lg btn-block" disabled={!chosen || !topic || busy || limitReached} onClick={submit}>
+          <button className="btn btn-primary btn-lg btn-block" disabled={!chosen || !topic || busy || blocked} onClick={submit}>
             {busy ? 'Oluşturuluyor…' : 'Randevuyu oluştur'}
           </button>
           <p className="fine">
             <IconVideo size={14} /> Google Meet linki randevu onaylanınca panelinde görünür.
           </p>
+          <p className="fine">
+            <IconClock size={14} />
+            <span>
+              {quotaRuleText(user, settings)}
+              {quota.intro && ` Yeni üye hakkın: ${quota.introLeft}/${settings.introBookings}.`}
+            </span>
+          </p>
         </aside>
       </div>
+
+      <Modal open={quotaOpen && !quota.canBook && !!quota.nextAt} onClose={() => setQuotaOpen(false)} size="sm">
+        <div className="success quota-pop">
+          <div className="quota-ring">
+            <IconClock size={28} />
+          </div>
+          <h2>Randevu hakkın dolu</h2>
+          <p className="muted">{quotaRuleText(user, settings)}</p>
+          {quota.nextAt && (
+            <div className="quota-count">
+              <span>Yeni hakkın açılmasına</span>
+              <strong>{formatRemaining(quota.nextAt - now)}</strong>
+              <em>{formatDateLong(new Date(quota.nextAt))} · {formatTime(new Date(quota.nextAt))}</em>
+            </div>
+          )}
+          <button className="btn btn-primary btn-block" onClick={() => navigate('/panel/randevularim')}>
+            Randevularıma git
+          </button>
+          <button className="btn btn-text btn-block" onClick={() => setQuotaOpen(false)}>
+            Tamam
+          </button>
+        </div>
+      </Modal>
 
       <BookingSuccess
         appt={done}

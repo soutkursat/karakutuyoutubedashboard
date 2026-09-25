@@ -20,8 +20,25 @@ create table if not exists public.profiles (
   admin_note  text not null default '',
   created_at  timestamptz not null default now()
 );
+-- Öğrenci takip alanları (v0.4)
+alter table public.profiles add column if not exists skool_member boolean not null default false;
+-- Eski öğrenci: yeni üye dönemini (ilk 4 randevu haftada 1) atlar, doğrudan 2 haftada 1
+alter table public.profiles add column if not exists veteran boolean not null default false;
+
 -- Aynı telefonla iki öğrenci hesabı açılamaz
 create unique index if not exists profiles_student_phone_uq on public.profiles (phone) where role = 'student' and phone <> '';
+
+-- Öğrencilerin YouTube kanalları (sadece öğrencinin kendisi ve yönetici görür)
+create table if not exists public.student_channels (
+  id          uuid primary key default gen_random_uuid(),
+  student_id  uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  url         text not null check (char_length(url) between 10 and 300 and url ~* '^https?://'),
+  monetized   boolean not null default false,
+  -- Kanalın açıldığı ya da aktif içerik üretmeye başlanan tarih
+  started_on  date check (started_on is null or started_on between date '2005-01-01' and current_date + 1),
+  created_at  timestamptz not null default now()
+);
+create index if not exists student_channels_student_idx on public.student_channels (student_id);
 
 -- Tek satırlık ayar tablosu (öğrenciler okuyabilir)
 create table if not exists public.app_settings (
@@ -44,6 +61,9 @@ insert into public.app_settings (id, data) values (1, '{
   "minNoticeHours": 12,
   "maxDaysAhead": 21,
   "maxActivePerStudent": 2,
+  "introBookings": 4,
+  "introGapDays": 7,
+  "regularGapDays": 14,
   "cancelLimitHours": 6,
   "whatsappNumber": "905377935090",
   "defaultMeetLink": "",
@@ -130,6 +150,18 @@ language plpgsql as $$ begin new.updated_at := now(); return new; end $$;
 drop trigger if exists appointments_touch on public.appointments;
 create trigger appointments_touch before update on public.appointments
   for each row execute function public.touch_updated_at();
+
+create or replace function public.limit_student_channels() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from student_channels where student_id = new.student_id) >= 10 then
+    raise exception 'En fazla 10 kanal ekleyebilirsin.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists student_channels_limit on public.student_channels;
+create trigger student_channels_limit before insert on public.student_channels
+  for each row execute function public.limit_student_channels();
 
 create or replace function public._hhmm_to_min(t text) returns int
 language sql immutable as $$ select split_part(t, ':', 1)::int * 60 + split_part(t, ':', 2)::int $$;
@@ -266,6 +298,10 @@ declare
   r jsonb;
   ok boolean := false;
   cnt int;
+  used int;
+  last_at timestamptz;
+  gap int;
+  next_at timestamptz;
   v_code text;
   confirmed boolean;
   result appointments;
@@ -313,6 +349,20 @@ begin
      where tstzrange(e.start_at, e.end_at) && tstzrange(p_start, p_start + make_interval(mins => slot))
   ) then
     raise exception 'Bu saat artık uygun değil. Lütfen başka bir saat seç.';
+  end if;
+
+  -- RANDEVU SIKLIĞI: yeni üye ilk N randevuyu haftada 1, sonra 2 haftada 1 oluşturabilir.
+  -- İptal edilen randevular sayılmaz (hak geri gelir). Süre son randevunun OLUŞTURULDUĞU andan başlar.
+  select count(*), max(created_at) into used, last_at from appointments
+   where student_id = me.id and status <> 'cancelled';
+  gap := case
+    when me.veteran or used >= coalesce((s ->> 'introBookings')::int, 4) then coalesce((s ->> 'regularGapDays')::int, 14)
+    else coalesce((s ->> 'introGapDays')::int, 7)
+  end;
+  next_at := last_at + make_interval(days => gap);
+  if last_at is not null and now() < next_at then
+    raise exception 'Yeni randevu hakkın % tarihinde açılacak.',
+      to_char(next_at at time zone 'Europe/Istanbul', 'DD.MM.YYYY HH24:MI');
   end if;
 
   select count(*) into cnt from appointments
@@ -363,11 +413,13 @@ language sql security definer set search_path = public as $$
    where id = p_id and (student_id = auth.uid() or public.is_admin());
 $$;
 
-create or replace function public.update_my_profile(p_name text, p_phone text) returns void
+drop function if exists public.update_my_profile(text, text);
+create or replace function public.update_my_profile(p_name text, p_phone text, p_skool boolean default null) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if auth.uid() is null then raise exception 'Oturum yok.'; end if;
-  update profiles set name = left(trim(p_name), 80), phone = p_phone where id = auth.uid();
+  update profiles set name = left(trim(p_name), 80), phone = p_phone, skool_member = coalesce(p_skool, skool_member)
+   where id = auth.uid();
 exception when unique_violation then
   raise exception 'Bu telefon numarası başka bir hesapta kayıtlı.';
 end $$;
@@ -416,6 +468,7 @@ alter table public.profiles     enable row level security;
 alter table public.appointments enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.app_secrets  enable row level security;
+alter table public.student_channels enable row level security;
 alter table public.google_integration enable row level security;
 alter table public.oauth_states       enable row level security;
 alter table public.external_busy      enable row level security;
@@ -436,6 +489,20 @@ drop policy if exists "randevu: yönetici günceller" on public.appointments;
 create policy "randevu: yönetici günceller" on public.appointments
   for update to authenticated using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "kanal: kendin veya yönetici okur" on public.student_channels;
+create policy "kanal: kendin veya yönetici okur" on public.student_channels
+  for select to authenticated using (student_id = auth.uid() or public.is_admin());
+drop policy if exists "kanal: kendin ekler" on public.student_channels;
+create policy "kanal: kendin ekler" on public.student_channels
+  for insert to authenticated with check (student_id = auth.uid());
+drop policy if exists "kanal: kendin veya yönetici düzenler" on public.student_channels;
+create policy "kanal: kendin veya yönetici düzenler" on public.student_channels
+  for update to authenticated using (student_id = auth.uid() or public.is_admin())
+  with check (student_id = auth.uid() or public.is_admin());
+drop policy if exists "kanal: kendin veya yönetici siler" on public.student_channels;
+create policy "kanal: kendin veya yönetici siler" on public.student_channels
+  for delete to authenticated using (student_id = auth.uid() or public.is_admin());
+
 drop policy if exists "ayar: giriş yapan okur" on public.app_settings;
 create policy "ayar: giriş yapan okur" on public.app_settings
   for select to authenticated using (true);
@@ -455,14 +522,14 @@ revoke insert, delete on public.profiles from anon, authenticated;
 revoke execute on function public.book_appointment(timestamptz, text, text) from public, anon;
 revoke execute on function public.cancel_my_appointment(uuid, text) from public, anon;
 revoke execute on function public.mark_whatsapp_notified(uuid) from public, anon;
-revoke execute on function public.update_my_profile(text, text) from public, anon;
+revoke execute on function public.update_my_profile(text, text, boolean) from public, anon;
 revoke execute on function public.admin_set_appointment_status(uuid, text, text) from public, anon;
 revoke execute on function public.admin_set_user_status(uuid, text) from public, anon;
 revoke execute on function public.busy_slots(timestamptz, timestamptz) from public, anon;
 grant execute on function public.book_appointment(timestamptz, text, text) to authenticated;
 grant execute on function public.cancel_my_appointment(uuid, text) to authenticated;
 grant execute on function public.mark_whatsapp_notified(uuid) to authenticated;
-grant execute on function public.update_my_profile(text, text) to authenticated;
+grant execute on function public.update_my_profile(text, text, boolean) to authenticated;
 grant execute on function public.admin_set_appointment_status(uuid, text, text) to authenticated;
 grant execute on function public.admin_set_user_status(uuid, text) to authenticated;
 grant execute on function public.busy_slots(timestamptz, timestamptz) to authenticated;

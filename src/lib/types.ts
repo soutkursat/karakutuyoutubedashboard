@@ -10,6 +10,10 @@ export interface User {
   username?: string
   phone: string
   status: UserStatus
+  /** Skool topluluğunda mı (öğrenci işaretler) */
+  skoolMember: boolean
+  /** Eski öğrenci: yeni üye dönemini atlar, doğrudan 2 haftada 1 (yönetici işaretler) */
+  veteran: boolean
   createdAt: string
   adminNote?: string
 }
@@ -48,6 +52,12 @@ export interface Settings {
   minNoticeHours: number
   maxDaysAhead: number
   maxActivePerStudent: number
+  /** Yeni üyenin haftalık randevu hakkı sayısı (varsayılan 4) */
+  introBookings: number
+  /** Yeni üye döneminde iki randevu arası gün (varsayılan 7) */
+  introGapDays: number
+  /** Sonrasında iki randevu arası gün (varsayılan 14) */
+  regularGapDays: number
   cancelLimitHours: number
   whatsappNumber: string
   defaultMeetLink: string
@@ -56,6 +66,16 @@ export interface Settings {
   /** Sadece yönetici görür (ayrı, gizli tabloda tutulur) */
   inviteCode: string
   topics: string[]
+}
+
+export interface Channel {
+  id: string
+  studentId: string
+  url: string
+  monetized: boolean
+  /** 'YYYY-MM-DD' — kanalın açıldığı ya da aktif içerik üretmeye başlanan tarih */
+  startedOn: string | null
+  createdAt: string
 }
 
 /** Dolu saat (kimin aldığı öğrenciye gösterilmez) */

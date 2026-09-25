@@ -31,3 +31,35 @@ export function isMeetLink(url: string): boolean {
 }
 
 export const clean = (s: string, max = 500) => s.replace(/\s+/g, ' ').trim().slice(0, max)
+
+/** YouTube kanal linkini düzenler; YouTube değilse null. "youtube.com/@x" gibi kısa yazımları da kabul eder. */
+export function normalizeChannelUrl(input: string): string | null {
+  let v = input.trim()
+  if (!v) return null
+  if (v.startsWith('@')) v = 'https://www.youtube.com/' + v
+  if (!/^https?:\/\//i.test(v)) v = 'https://' + v
+  try {
+    const u = new URL(v)
+    const host = u.hostname.toLowerCase()
+    if (!(host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be')) return null
+    if (u.pathname.length < 2) return null
+    u.protocol = 'https:'
+    u.hash = ''
+    const out = u.toString().replace(/\/$/, '')
+    return out.length <= 300 ? out : null
+  } catch {
+    return null
+  }
+}
+
+/** Linkten okunabilir kanal adı: "@kanaladi" ya da yol */
+export function channelLabel(url: string): string {
+  try {
+    const u = new URL(url)
+    const seg = decodeURIComponent(u.pathname).split('/').filter(Boolean)
+    const handle = seg.find((x) => x.startsWith('@'))
+    return handle ?? seg.slice(-1)[0] ?? u.hostname
+  } catch {
+    return url
+  }
+}

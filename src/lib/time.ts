@@ -62,3 +62,22 @@ export function relativeFromNow(iso: string, now = Date.now()): string {
   const txt = min < 60 ? `${min} dk` : hr < 48 ? `${hr} saat` : `${day} gün`
   return diff >= 0 ? `${txt} sonra` : `${txt} önce`
 }
+
+/** 'YYYY-MM-DD' → "Mart 2024" */
+export function formatMonthYear(key: string): string {
+  return new Intl.DateTimeFormat('tr-TR', { timeZone: TZ, month: 'long', year: 'numeric' }).format(toInstant(key, '12:00'))
+}
+
+/** 'YYYY-MM-DD' → bugüne kadar geçen süre: "1 yıl 3 ay", "5 ay", "12 gün" */
+export function durationSince(key: string, now = new Date()): string {
+  const [y, m, d] = key.split('-').map(Number)
+  const [ty, tm, td] = dateKey(now).split('-').map(Number)
+  let months = (ty - y) * 12 + (tm - m) - (td < d ? 1 : 0)
+  if (months < 1) {
+    const days = Math.max(0, Math.round((toInstant(dateKey(now), '12:00').getTime() - toInstant(key, '12:00').getTime()) / 86400_000))
+    return `${days} gün`
+  }
+  const years = Math.floor(months / 12)
+  months %= 12
+  return [years ? `${years} yıl` : '', months ? `${months} ay` : ''].filter(Boolean).join(' ')
+}

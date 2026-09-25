@@ -66,6 +66,17 @@ npm run dev                  # http://localhost:5173
 - Randevu sonrası pop-up → **WhatsApp'tan bildir** (tarih, saat, konu, not, iletişim bilgisi, randevu no)
 - Randevularım: yaklaşan / geçmiş / iptal, Meet'e katıl, iptal (+ iptali WhatsApp'tan bildirme)
 
+**Öğrenci takibi** (Profilim sayfası — sadece öğrencinin kendisi ve yönetici görür)
+- Mentörlükte kullanılan WhatsApp numarası, Skool topluluğunda mı işareti
+- YouTube kanalları (birden fazla): link, para kazanma açık/kapalı, kanalın açıldığı / aktif içerik üretilmeye başlanan tarih
+- Yönetici: Öğrenciler sayfasında filtreler (Skool'da, para kazanan, kanalı yok), satıra tıklayınca detay penceresi
+
+**Randevu sıklığı** (sunucuda uygulanır)
+- Yeni üye: ilk 4 randevuyu 7 günde 1, sonrasında 14 günde 1 (sayılar Müsaitlik sayfasından değiştirilebilir)
+- Süre son randevunun oluşturulduğu andan başlar; iptal edilen randevu sayılmaz (hak geri gelir)
+- Yönetici bir öğrenciyi "eski öğrenci" yaparsa doğrudan 14 günlük kurala geçer
+- Hakkı dolan öğrenci randevu sayfasında kalan süreyi gösteren pop-up görür
+
 **Yönetim paneli** (sadece `kursatyoutube`)
 - Genel bakış: bugün, onay bekleyen, 7 gün, öğrenci sayısı
 - Randevular: filtre + arama, onayla, Meet linki ekle, tamamlandı, iptal/geri al, öğrenciye WhatsApp'tan yaz

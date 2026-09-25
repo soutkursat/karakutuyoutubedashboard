@@ -10,9 +10,9 @@
  */
 import { emit } from './storage'
 import { isConfigured, supabase } from './supabase'
-import type { Appointment, AppointmentStatus, Busy, Settings, User } from './types'
-import { AppError, EMAIL_RE, clean, isMeetLink, normalizePhone } from './validation'
-import { isValidDateKey, isValidTime, toMinutes } from './time'
+import type { Appointment, AppointmentStatus, Busy, Channel, Settings, User } from './types'
+import { AppError, EMAIL_RE, clean, isMeetLink, normalizePhone, normalizeChannelUrl } from './validation'
+import { dateKey, isValidDateKey, isValidTime, toMinutes } from './time'
 
 export const DEFAULT_SETTINGS: Settings = {
   weekly: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
@@ -22,6 +22,9 @@ export const DEFAULT_SETTINGS: Settings = {
   minNoticeHours: 12,
   maxDaysAhead: 21,
   maxActivePerStudent: 2,
+  introBookings: 4,
+  introGapDays: 7,
+  regularGapDays: 14,
   cancelLimitHours: 6,
   whatsappNumber: '905377935090',
   defaultMeetLink: '',
@@ -38,6 +41,7 @@ interface State {
   users: User[]
   appts: Appointment[]
   busy: Busy[]
+  channels: Channel[]
   settings: Settings
   publicConfig: { registrationOpen: boolean; inviteRequired: boolean }
   /** Hesap askıya alındıysa girişte gösterilecek mesaj */
@@ -50,6 +54,7 @@ let state: State = {
   users: [],
   appts: [],
   busy: [],
+  channels: [],
   settings: DEFAULT_SETTINGS,
   publicConfig: { registrationOpen: true, inviteRequired: false },
   blockedReason: '',
@@ -70,6 +75,8 @@ interface ProfileRow {
   phone: string
   status: User['status']
   admin_note: string
+  skool_member?: boolean
+  veteran?: boolean
   created_at: string
 }
 interface ApptRow {
@@ -100,6 +107,25 @@ const toUser = (r: ProfileRow): User => ({
   phone: r.phone,
   status: r.status,
   adminNote: r.admin_note || undefined,
+  skoolMember: !!r.skool_member,
+  veteran: !!r.veteran,
+  createdAt: r.created_at,
+})
+
+interface ChannelRow {
+  id: string
+  student_id: string
+  url: string
+  monetized: boolean
+  started_on: string | null
+  created_at: string
+}
+const toChannel = (r: ChannelRow): Channel => ({
+  id: r.id,
+  studentId: r.student_id,
+  url: r.url,
+  monetized: r.monetized,
+  startedOn: r.started_on,
   createdAt: r.created_at,
 })
 
@@ -148,6 +174,7 @@ export function toAppError(e: unknown): AppError {
   if (/Database error saving new user/i.test(m)) return new AppError('Kayıt tamamlanamadı. Bilgilerini kontrol edip tekrar dene.')
   if (err.code === '23505') return new AppError('Bu bilgi başka bir hesapta kayıtlı.')
   if (err.code === '42501') return new AppError('Bu işlem için yetkin yok.')
+  if (err.code === '23514') return new AppError('Girilen bilgilerden biri geçersiz. Kontrol edip tekrar dene.')
   // Sunucudaki fonksiyonlarımızın (raise exception) mesajları zaten Türkçe ve kullanıcıya uygun
   if (err.code === 'P0001' && m) return new AppError(m)
   return new AppError(m || 'Beklenmeyen bir hata oluştu.')
@@ -184,12 +211,18 @@ async function loadAll(userId: string) {
       users: [],
       appts: [],
       busy: [],
+      channels: [],
       blockedReason: prof ? 'Hesabın askıya alınmış. Lütfen bizimle iletişime geç.' : 'Hesap bulunamadı.',
     })
     return
   }
   const me = toUser(prof)
   const settingsRow = maybe(await supabase.from('app_settings').select('data').eq('id', 1).maybeSingle<{ data: Partial<Settings> }>())
+  // Yönetici tüm kanalları, öğrenci sadece kendi kanallarını görür (RLS).
+  // Şema henüz güncellenmediyse panel yine açılsın diye hata yumuşak karşılanır.
+  const chRes = await supabase.from('student_channels').select('*').order('created_at').returns<ChannelRow[]>()
+  if (chRes.error) console.warn('Kanallar yüklenemedi (supabase/schema.sql tekrar çalıştırılmalı):', chRes.error.message)
+  const channels = (chRes.data ?? []).map(toChannel)
 
   if (me.role === 'admin') {
     const [users, appts, secrets] = await Promise.all([
@@ -203,6 +236,7 @@ async function loadAll(userId: string) {
       users: must(users).map(toUser),
       appts: must(appts).map(toAppt),
       busy: [],
+      channels,
       settings: mergeSettings(settingsRow?.data, maybe(secrets)?.invite_code ?? ''),
       blockedReason: '',
     })
@@ -223,6 +257,7 @@ async function loadAll(userId: string) {
       users: [me],
       appts: must(appts).map(toAppt),
       busy: ((must(busy) ?? []) as BusyRow[]).map((b) => ({ start: iso(b.start_at), end: iso(b.end_at), mine: b.mine })),
+      channels,
       settings,
       blockedReason: '',
     })
@@ -252,7 +287,7 @@ const scheduleRefresh = () => {
 }
 
 function clearUser() {
-  setState({ me: null, users: [], appts: [], busy: [], settings: DEFAULT_SETTINGS })
+  setState({ me: null, users: [], appts: [], busy: [], channels: [], settings: DEFAULT_SETTINGS })
 }
 
 /** Uygulama açılışında bir kez çağrılır. */
@@ -313,6 +348,7 @@ export const getStudents = () => state.users.filter((u) => u.role === 'student')
 export const getUser = (id: string) => state.users.find((u) => u.id === id)
 export const getAppointments = () => state.appts
 export const getBusy = () => state.busy
+export const getChannels = (studentId: string) => state.channels.filter((c) => c.studentId === studentId)
 export const getSettings = () => state.settings
 export const getPublicConfig = () => state.publicConfig
 export const currentUser = () => state.me
@@ -383,12 +419,51 @@ export async function register(input: RegisterInput): Promise<{ needsConfirm: bo
 }
 
 // ---------- profil ----------
-export async function updateProfile(_userId: string, patch: { name: string; phone: string }) {
+export async function updateProfile(_userId: string, patch: { name: string; phone: string; skoolMember?: boolean }) {
   const name = clean(patch.name, 80)
   if (name.length < 2) throw new AppError('Ad soyad en az 2 karakter olmalı.')
   const phone = normalizePhone(patch.phone)
-  if (!phone) throw new AppError('Geçerli bir telefon numarası gir.')
-  must(await supabase.rpc('update_my_profile', { p_name: name, p_phone: phone }))
+  if (!phone) throw new AppError('Geçerli bir WhatsApp numarası gir (ör. 0537 000 00 00).')
+  must(await supabase.rpc('update_my_profile', { p_name: name, p_phone: phone, p_skool: patch.skoolMember ?? null }))
+  await refresh()
+}
+
+// ---------- kanallar ----------
+export interface ChannelInput {
+  url: string
+  monetized: boolean
+  startedOn: string
+}
+
+function validateChannel(input: ChannelInput) {
+  const url = normalizeChannelUrl(input.url)
+  if (!url) throw new AppError('Geçerli bir YouTube kanal linki gir (ör. https://www.youtube.com/@kanaladi).')
+  const startedOn = input.startedOn || null
+  if (startedOn) {
+    if (!isValidDateKey(startedOn)) throw new AppError('Başlangıç tarihi geçersiz.')
+    if (startedOn < '2005-01-01' || startedOn > dateKey()) {
+      throw new AppError('Başlangıç tarihi bugünden ileri ya da 2005’ten önce olamaz.')
+    }
+  }
+  return { url, monetized: !!input.monetized, started_on: startedOn }
+}
+
+export async function addChannel(input: ChannelInput) {
+  const row = validateChannel(input)
+  if (state.me && getChannels(state.me.id).some((c) => c.url.toLowerCase() === row.url.toLowerCase())) {
+    throw new AppError('Bu kanal zaten ekli.')
+  }
+  must(await supabase.from('student_channels').insert(row))
+  await refresh()
+}
+
+export async function updateChannel(id: string, input: ChannelInput) {
+  must(await supabase.from('student_channels').update(validateChannel(input)).eq('id', id))
+  await refresh()
+}
+
+export async function deleteChannel(id: string) {
+  must(await supabase.from('student_channels').delete().eq('id', id))
   await refresh()
 }
 
@@ -592,6 +667,12 @@ export async function deleteStudent(id: string) {
   await adminApi({ action: 'delete', id })
 }
 
+/** Eski öğrenci: yeni üye dönemini atlar, doğrudan 2 haftada 1 randevu */
+export async function setVeteran(id: string, veteran: boolean) {
+  must(await supabase.from('profiles').update({ veteran }).eq('id', id))
+  await refresh()
+}
+
 export async function setUserStatus(id: string, status: 'active' | 'disabled') {
   must(await supabase.rpc('admin_set_user_status', { p_id: id, p_status: status }))
   await refresh()
@@ -621,6 +702,9 @@ export async function saveSettings(next: Settings) {
   num(next.minNoticeHours, 0, 168, 'Minimum bildirim süresi')
   num(next.maxDaysAhead, 1, 90, 'İleri tarih limiti')
   num(next.maxActivePerStudent, 1, 10, 'Aktif randevu limiti')
+  num(next.introBookings, 0, 20, 'Yeni üye randevu hakkı')
+  num(next.introGapDays, 0, 60, 'Yeni üye randevu aralığı')
+  num(next.regularGapDays, 0, 90, 'Randevu aralığı')
   num(next.cancelLimitHours, 0, 168, 'İptal limiti')
   const wa = normalizePhone(next.whatsappNumber)
   if (!wa) throw new AppError('WhatsApp numarası geçersiz.')

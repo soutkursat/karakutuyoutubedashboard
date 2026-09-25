@@ -39,7 +39,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', dis
       <div ref={panel} className={cx('modal glass', `modal-${size}`)} role="dialog" aria-modal="true" tabIndex={-1}>
         {(title || dismissible) && (
           <div className="modal-head">
-            <h3>{title}</h3>
+            <div className="modal-title">{title}</div>
             {dismissible && (
               <button className="icon-btn" onClick={onClose} aria-label="Kapat">
                 <IconX />

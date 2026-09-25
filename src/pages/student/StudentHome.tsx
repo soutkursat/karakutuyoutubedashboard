@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { PageHeader } from '../../components/Common'
 import { IconArrowRight, IconCalendar, IconCalendarPlus, IconCheck, IconClock, IconVideo, IconWhatsapp } from '../../components/Icons'
-import { currentUser, getAppointments, getSettings, markWhatsappNotified } from '../../lib/db'
+import { currentUser, getAppointments, getChannels, getSettings, markWhatsappNotified } from '../../lib/db'
+import { computeQuota, formatRemaining } from '../../lib/quota'
 import { useDataVersion, useNow } from '../../lib/hooks'
 import { formatDateLong, formatTime, relativeFromNow } from '../../lib/time'
 import { StatusBadge } from '../../components/Common'
@@ -19,6 +20,8 @@ export function StudentHome() {
   const next = upcoming[0]
   const completed = mine.filter((a) => a.status === 'completed').length
   const unnotified = upcoming.filter((a) => !a.whatsappNotifiedAt)
+  const quota = computeQuota(user, getAppointments(), settings, now)
+  const missing = [!user.phone && 'WhatsApp numaran', getChannels(user.id).length === 0 && 'YouTube kanal linkin'].filter(Boolean)
   const joinable = next?.meetLink && next.status === 'confirmed' && new Date(next.start).getTime() - now < 15 * 60000
 
   return (
@@ -34,10 +37,10 @@ export function StudentHome() {
         }
       />
 
-      {!user.phone && (
+      {missing.length > 0 && (
         <div className="notice notice-warn">
-          <span>WhatsApp numaran kayıtlı değil. Randevu bildirimlerinde görünmesi için</span>
-          <Link className="link" to="/panel/profil">profiline ekle</Link>
+          <span>Profilini tamamla: {missing.join(' ve ')} eksik.</span>
+          <Link className="btn btn-ghost btn-sm" to="/panel/profil">Profilime git</Link>
         </div>
       )}
 
@@ -107,9 +110,15 @@ export function StudentHome() {
             <span className="stat-ic"><IconCheck /></span>
             <div><strong>{completed}</strong><span>Tamamlanan</span></div>
           </div>
-          <div className="stat glass">
+          <div className={quota.canBook ? 'stat glass' : 'stat glass hot'}>
             <span className="stat-ic"><IconClock /></span>
-            <div><strong>{settings.slotMinutes} dk</strong><span>Görüşme süresi</span></div>
+            <div>
+              <strong>{quota.canBook ? 'Açık' : formatRemaining((quota.nextAt ?? now) - now)}</strong>
+              <span>
+                {quota.canBook ? 'Randevu hakkın' : 'Yeni hakka kalan'}
+                {quota.intro && ` · yeni üye ${quota.introLeft}/${settings.introBookings}`}
+              </span>
+            </div>
           </div>
         </div>
       </div>
