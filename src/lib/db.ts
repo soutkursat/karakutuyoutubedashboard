@@ -10,7 +10,7 @@
  */
 import { emit } from './storage'
 import { isConfigured, supabase } from './supabase'
-import type { Appointment, AppointmentStatus, Busy, Channel, Settings, User } from './types'
+import type { Appointment, AppointmentStatus, Busy, Channel, ContentFormat, Settings, User } from './types'
 import { AppError, EMAIL_RE, clean, isMeetLink, normalizePhone, normalizeChannelUrl } from './validation'
 import { dateKey, isValidDateKey, isValidTime, toMinutes } from './time'
 
@@ -122,6 +122,11 @@ interface ChannelRow {
   url: string
   monetized: boolean
   started_on: string | null
+  upload_days?: number[] | null
+  video_count?: number | null
+  niche?: string | null
+  content_format?: ContentFormat | null
+  challenge?: string | null
   created_at: string
 }
 const toChannel = (r: ChannelRow): Channel => ({
@@ -130,6 +135,11 @@ const toChannel = (r: ChannelRow): Channel => ({
   url: r.url,
   monetized: r.monetized,
   startedOn: r.started_on,
+  uploadDays: (r.upload_days ?? []).map(Number).sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)),
+  videoCount: r.video_count ?? null,
+  niche: r.niche ?? '',
+  contentFormat: r.content_format ?? null,
+  challenge: r.challenge ?? '',
   createdAt: r.created_at,
 })
 
@@ -452,8 +462,34 @@ function validateChannel(input: ChannelInput) {
   return { url, monetized: !!input.monetized, started_on: startedOn }
 }
 
-export async function addChannel(input: ChannelInput) {
-  const row = validateChannel(input)
+/** İsteğe bağlı kanal detayları (sadece öğrencinin kendi formundan) */
+export interface ChannelDetails {
+  uploadDays: number[]
+  videoCount: string
+  niche: string
+  contentFormat: ContentFormat | null
+  challenge: string
+}
+
+function validateDetails(d: ChannelDetails) {
+  const days = [...new Set(d.uploadDays)].filter((x) => Number.isInteger(x) && x >= 0 && x <= 6)
+  let videoCount: number | null = null
+  if (d.videoCount.trim()) {
+    videoCount = Number(d.videoCount.replace(/[.\s]/g, ''))
+    if (!Number.isInteger(videoCount) || videoCount < 0 || videoCount > 100000) throw new AppError('Video sayısı 0 ile 100.000 arasında bir tam sayı olmalı.')
+  }
+  const format = d.contentFormat && ['long', 'shorts', 'both'].includes(d.contentFormat) ? d.contentFormat : null
+  return {
+    upload_days: days,
+    video_count: videoCount,
+    niche: clean(d.niche, 120) || null,
+    content_format: format,
+    challenge: d.challenge.trim().slice(0, 600) || null,
+  }
+}
+
+export async function addChannel(input: ChannelInput, details?: ChannelDetails) {
+  const row = { ...validateChannel(input), ...(details ? validateDetails(details) : {}) }
   if (state.me && getChannels(state.me.id).some((c) => c.url.toLowerCase() === row.url.toLowerCase())) {
     throw new AppError('Bu kanal zaten ekli.')
   }
@@ -461,8 +497,9 @@ export async function addChannel(input: ChannelInput) {
   await refresh()
 }
 
-export async function updateChannel(id: string, input: ChannelInput) {
-  must(await supabase.from('student_channels').update(validateChannel(input)).eq('id', id))
+export async function updateChannel(id: string, input: ChannelInput, details?: ChannelDetails) {
+  const row = { ...validateChannel(input), ...(details ? validateDetails(details) : {}) }
+  must(await supabase.from('student_channels').update(row).eq('id', id))
   await refresh()
 }
 

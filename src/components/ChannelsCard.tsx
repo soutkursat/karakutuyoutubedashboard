@@ -1,25 +1,37 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Empty, Field } from './Common'
-import { IconEdit, IconPlus, IconTrash, IconVideo } from './Icons'
+import { IconChevronRight, IconEdit, IconPlus, IconTrash, IconVideo } from './Icons'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
-import { addChannel, deleteChannel, getChannels, updateChannel, type ChannelInput } from '../lib/db'
+import { addChannel, deleteChannel, getChannels, updateChannel, type ChannelDetails, type ChannelInput } from '../lib/db'
 import { useDataVersion } from '../lib/hooks'
-import { dateKey, durationSince, formatMonthYear } from '../lib/time'
-import type { Channel } from '../lib/types'
+import { WEEKDAYS_SHORT, dateKey, durationSince, formatMonthYear } from '../lib/time'
+import type { Channel, ContentFormat } from '../lib/types'
 import { cx, errMsg } from '../lib/ui'
 import { channelLabel } from '../lib/validation'
 
 const EMPTY: ChannelInput = { url: '', monetized: false, startedOn: '' }
+const EMPTY_DETAILS: ChannelDetails = { uploadDays: [], videoCount: '', niche: '', contentFormat: null, challenge: '' }
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0] // Pazartesi'den başla
+export const FORMAT_LABEL: Record<ContentFormat, string> = { long: 'Uzun video', shorts: 'Shorts', both: 'Uzun + Shorts' }
+const fmtNum = (n: number) => new Intl.NumberFormat('tr-TR').format(n)
+const daysText = (d: number[]) => (d.length === 7 ? 'Her gün' : d.map((x) => WEEKDAYS_SHORT[x]).join(', '))
 
-/** Tek kanal satırı (öğrenci profili + yönetici detay penceresi ortak) */
-export function ChannelRow({ c, actions }: { c: Channel; actions?: React.ReactNode }) {
-  return (
-    <div className="channel">
+/** Tek kanal satırı (öğrenci profili + yönetici detay penceresi ortak).
+ *  expandable: yönetici tıklayınca kanalın tüm detayları açılır. */
+export function ChannelRow({ c, actions, expandable = false }: { c: Channel; actions?: ReactNode; expandable?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const hasDetails = c.uploadDays.length > 0 || c.videoCount != null || !!c.niche || !!c.contentFormat || !!c.challenge
+  const summary = (
+    <>
       <span className="channel-ic"><IconVideo size={18} /></span>
-      <div className="channel-body">
-        <a className="channel-name" href={c.url} target="_blank" rel="noopener noreferrer">{channelLabel(c.url)}</a>
-        <div className="channel-meta">
+      <span className="channel-body">
+        {expandable ? (
+          <span className="channel-name">{channelLabel(c.url)}</span>
+        ) : (
+          <a className="channel-name" href={c.url} target="_blank" rel="noopener noreferrer">{channelLabel(c.url)}</a>
+        )}
+        <span className="channel-meta">
           <span className={cx('badge', c.monetized ? 'badge-confirmed' : 'badge-muted')}>
             {c.monetized ? 'Para kazanma açık' : 'Para kazanma kapalı'}
           </span>
@@ -28,9 +40,45 @@ export function ChannelRow({ c, actions }: { c: Channel; actions?: React.ReactNo
           ) : (
             <span className="muted">Başlangıç tarihi yok</span>
           )}
-        </div>
+          {c.videoCount != null && <span className="muted">· {fmtNum(c.videoCount)} video</span>}
+        </span>
+      </span>
+    </>
+  )
+
+  if (!expandable) {
+    return (
+      <div className="channel">
+        {summary}
+        {actions && <div className="row-actions">{actions}</div>}
       </div>
-      {actions && <div className="row-actions">{actions}</div>}
+    )
+  }
+
+  return (
+    <div className={cx('channel-x', open && 'open')}>
+      <button type="button" className="channel channel-btn" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {summary}
+        <IconChevronRight size={18} className="channel-chev" />
+      </button>
+      {open && (
+        <div className="channel-detail">
+          {hasDetails ? (
+            <div className="cd-grid">
+              <div><span>Yükleme günleri</span><strong>{c.uploadDays.length ? daysText(c.uploadDays) : '—'}</strong></div>
+              <div><span>Toplam video</span><strong>{c.videoCount != null ? fmtNum(c.videoCount) : '—'}</strong></div>
+              <div><span>İçerik türü</span><strong>{c.contentFormat ? FORMAT_LABEL[c.contentFormat] : '—'}</strong></div>
+              <div><span>Konu / niş</span><strong>{c.niche || '—'}</strong></div>
+              {c.challenge && (
+                <div className="cd-wide"><span>En çok zorlandığı konu</span><p>{c.challenge}</p></div>
+              )}
+            </div>
+          ) : (
+            <p className="muted small-text">Öğrenci bu kanal için henüz detay girmedi.</p>
+          )}
+          <a className="btn btn-ghost btn-sm" href={c.url} target="_blank" rel="noopener noreferrer">YouTube’da aç</a>
+        </div>
+      )}
     </div>
   )
 }
@@ -42,12 +90,18 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
   const channels = getChannels(studentId)
   const [edit, setEdit] = useState<Channel | 'new' | null>(null)
   const [form, setForm] = useState<ChannelInput>(EMPTY)
+  const [det, setDet] = useState<ChannelDetails>(EMPTY_DETAILS)
   const [del, setDel] = useState<Channel | null>(null)
   const [busy, setBusy] = useState(false)
 
   const open = (c: Channel | 'new') => {
     setEdit(c)
     setForm(c === 'new' ? EMPTY : { url: c.url, monetized: c.monetized, startedOn: c.startedOn ?? '' })
+    setDet(
+      c === 'new'
+        ? EMPTY_DETAILS
+        : { uploadDays: c.uploadDays, videoCount: c.videoCount != null ? String(c.videoCount) : '', niche: c.niche, contentFormat: c.contentFormat, challenge: c.challenge },
+    )
   }
 
   const run = async (fn: () => Promise<unknown>, ok: string) => {
@@ -67,7 +121,8 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
 
   const save = async () => {
     if (!edit) return
-    const ok = edit === 'new' ? await run(() => addChannel(form), 'Kanal eklendi') : await run(() => updateChannel(edit.id, form), 'Kanal güncellendi')
+    const ok =
+      edit === 'new' ? await run(() => addChannel(form, det), 'Kanal eklendi') : await run(() => updateChannel(edit.id, form, det), 'Kanal güncellendi')
     if (ok) setEdit(null)
   }
 
@@ -149,6 +204,62 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
               onChange={(e) => setForm({ ...form, startedOn: e.target.value })}
             />
           </Field>
+
+          <div className="ch-more">
+            <h4 className="sf-h">Kanal detayları <em>isteğe bağlı · mentörünün kanalını analiz etmesini kolaylaştırır</em></h4>
+            <Field label="Hangi günlerde video yüklüyorsun?">
+              <div className="day-pick">
+                {DAY_ORDER.map((d) => {
+                  const on = det.uploadDays.includes(d)
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      aria-pressed={on}
+                      className={cx('chip', on && 'active')}
+                      onClick={() => setDet({ ...det, uploadDays: on ? det.uploadDays.filter((x) => x !== d) : [...det.uploadDays, d] })}
+                    >
+                      {WEEKDAYS_SHORT[d]}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+            <div className="grid-2">
+              <Field label="Toplam video sayısı">
+                <input className="input" inputMode="numeric" value={det.videoCount} onChange={(e) => setDet({ ...det, videoCount: e.target.value.replace(/[^0-9.]/g, '') })} placeholder="Ör. 48" />
+              </Field>
+              <Field label="Kanalın konusu / nişi">
+                <input className="input" maxLength={120} value={det.niche} onChange={(e) => setDet({ ...det, niche: e.target.value })} placeholder="Ör. tarih belgeselleri" />
+              </Field>
+            </div>
+            <Field label="İçerik türü">
+              <div className="seg seg-full seg-3" role="radiogroup">
+                {(Object.keys(FORMAT_LABEL) as ContentFormat[]).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={det.contentFormat === k}
+                    className={cx('seg-btn', det.contentFormat === k && 'active')}
+                    onClick={() => setDet({ ...det, contentFormat: det.contentFormat === k ? null : k })}
+                  >
+                    {FORMAT_LABEL[k]}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Şu an kanalında en çok zorlandığın konu ne?">
+              <textarea
+                className="input"
+                rows={2}
+                maxLength={600}
+                value={det.challenge}
+                onChange={(e) => setDet({ ...det, challenge: e.target.value })}
+                placeholder="Ör. izlenmeler düşük, thumbnail, fikir bulma, düzenli yükleme…"
+              />
+            </Field>
+          </div>
         </div>
       </Modal>
 

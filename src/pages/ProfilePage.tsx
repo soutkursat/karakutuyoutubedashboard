@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { ChannelsCard } from '../components/ChannelsCard'
+import { ThemePicker } from '../components/ThemePicker'
 import { Field, PageHeader, PasswordInput, Switch } from '../components/Common'
 import { IconUser } from '../components/Icons'
 import { useToast } from '../components/Toast'
@@ -87,6 +88,14 @@ export function ProfilePage() {
     </form>
   )
 
+  const theme = (
+    <section className="card glass profile-theme">
+      <h3 className="card-title">Görünüm</h3>
+      <p className="muted small-text">Panelin renk temasını seç. Sadece renkler değişir, seçimin bu cihazda saklanır.</p>
+      <ThemePicker />
+    </section>
+  )
+
   const password = (
     <form className="card glass profile-password" onSubmit={savePw}>
       <h3 className="card-title">Şifre değiştir</h3>
@@ -120,12 +129,16 @@ export function ProfilePage() {
           <div className="profile-channels">
             <ChannelsCard studentId={user.id} />
           </div>
+          {theme}
           {password}
         </div>
       ) : (
         <div className="grid-2 align-start">
           {personal}
-          {password}
+          <div className="stack">
+            {password}
+            {theme}
+          </div>
         </div>
       )}
     </>

@@ -42,6 +42,22 @@ create table if not exists public.student_channels (
   created_at  timestamptz not null default now()
 );
 create index if not exists student_channels_student_idx on public.student_channels (student_id);
+-- Kanal detayları (v0.6, hepsi isteğe bağlı)
+alter table public.student_channels add column if not exists upload_days smallint[] not null default '{}';
+alter table public.student_channels add column if not exists video_count int;
+alter table public.student_channels add column if not exists niche text;
+alter table public.student_channels add column if not exists content_format text;
+alter table public.student_channels add column if not exists challenge text;
+do $$ begin
+  alter table public.student_channels add constraint student_channels_details_check check (
+    upload_days <@ array[0, 1, 2, 3, 4, 5, 6]::smallint[]
+    and (video_count is null or video_count between 0 and 100000)
+    and (niche is null or char_length(niche) <= 120)
+    and (content_format is null or content_format in ('long', 'shorts', 'both'))
+    and (challenge is null or char_length(challenge) <= 600)
+  );
+exception when duplicate_object then null;
+end $$;
 
 -- Tek satırlık ayar tablosu (öğrenciler okuyabilir)
 create table if not exists public.app_settings (

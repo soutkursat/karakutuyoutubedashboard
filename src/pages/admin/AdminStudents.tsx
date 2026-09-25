@@ -209,9 +209,9 @@ export function AdminStudents() {
               </div>
 
               <div>
-                <h4 className="detail-h">YouTube kanalları <em>{chs.length}</em></h4>
+                <h4 className="detail-h">YouTube kanalları <em>{chs.length}</em>{chs.length > 0 && <span className="detail-hint">detay için kanala tıkla</span>}</h4>
                 {chs.length ? (
-                  <div className="channel-list">{chs.map((c) => <ChannelRow key={c.id} c={c} />)}</div>
+                  <div className="channel-list">{chs.map((c) => <ChannelRow key={c.id} c={c} expandable />)}</div>
                 ) : (
                   <p className="muted">Öğrenci henüz kanal eklemedi.</p>
                 )}

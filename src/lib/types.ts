@@ -79,8 +79,16 @@ export interface Channel {
   monetized: boolean
   /** 'YYYY-MM-DD' — kanalın açıldığı ya da aktif içerik üretmeye başlanan tarih */
   startedOn: string | null
+  /** İsteğe bağlı detaylar (öğrenci girer, yönetici öğrencinin detayında görür) */
+  uploadDays: number[] // 0 = Pazar ... 6 = Cumartesi
+  videoCount: number | null
+  niche: string
+  contentFormat: ContentFormat | null
+  challenge: string
   createdAt: string
 }
+
+export type ContentFormat = 'long' | 'shorts' | 'both'
 
 /** Dolu saat (kimin aldığı öğrenciye gösterilmez) */
 export interface Busy {

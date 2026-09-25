@@ -69,7 +69,13 @@ npm run dev                  # http://localhost:5173
 **Öğrenci takibi** (Profilim sayfası — sadece öğrencinin kendisi ve yönetici görür)
 - Mentörlükte kullanılan WhatsApp numarası, Skool topluluğunda mı işareti
 - YouTube kanalları (birden fazla): link, para kazanma açık/kapalı, kanalın açıldığı / aktif içerik üretilmeye başlanan tarih
+- İsteğe bağlı kanal detayları: yükleme günleri, toplam video, konu/niş, içerik türü (uzun/Shorts), en çok zorlanılan konu
+  (yönetici: Öğrenciler → öğrenciye tıkla → kanala tıkla)
 - Yönetici: Öğrenciler sayfasında filtreler (Skool'da, para kazanan, kanalı yok), satıra tıklayınca detay penceresi
+
+**Görünüm**
+- Temalar: Kırmızı (varsayılan), Mavi, Beyaz — sadece renkler değişir; Profilim sayfasından veya sol alttaki kullanıcı menüsünden
+- Sol alttaki kullanıcı kartına tıklayınca: Profili düzenle · Tema · Çıkış yap
 
 **Randevu sıklığı** (sunucuda uygulanır)
 - Yeni üye: ilk 4 randevuyu 7 günde 1, sonrasında 14 günde 1 (sayılar Müsaitlik sayfasından değiştirilebilir)

@@ -8,6 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800;900&display=swap" rel="stylesheet" />
+    <script>
+      // Kaydedilmiş temayı sayfa çizilmeden uygula (renk yanıp sönmesin)
+      try { var t = localStorage.getItem('kk.theme'); if (t === 'blue' || t === 'mono') document.documentElement.dataset.theme = t } catch (e) {}
+    </script>
     <title>Kara Kutu YouTube Akademisi · Mentörlük Paneli</title>
   </head>
   <body>

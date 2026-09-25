@@ -38,6 +38,9 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
 
 ## Tasarım dili
 Siyah zemin, kırmızı→turuncu gradyan vurgu, ince grid dokusu, cam (glass) kartlar.
+**Temalar (kırmızı/mavi/beyaz):** vurgu rengini ASLA sabit yazma; `var(--accent-rgb)`, `var(--grad-btn)`, `var(--accent-text)`,
+`var(--on-accent)` (vurgu zemini üstündeki yazı) kullan. Silme/iptal/hata için `--danger-*` (her temada kırmızı).
+Tema sadece renkleri değiştirir; ölçü/yerleşim temaya göre değişmemeli.
 Yeni ekran eklerken mevcut sınıfları kullan: `card glass`, `glow`, `btn btn-primary|btn-ghost|btn-wa|btn-text`,
 `field`, `input`, `chip`, `badge`, `notice`, `seg`, `PageHeader`, `Empty`, `Modal`, `useToast`.
 Mobil (390px) görünümü her değişiklikte kontrol et.
