@@ -24,6 +24,9 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists skool_member boolean not null default false;
 -- Eski öğrenci: yeni üye dönemini (ilk 4 randevu haftada 1) atlar, doğrudan 2 haftada 1
 alter table public.profiles add column if not exists veteran boolean not null default false;
+-- Yönetici düzeltmeleri (v0.5): sistem dışında kullanılmış yeni üye hakları ve bekleme sıfırlama
+alter table public.profiles add column if not exists intro_used_extra int not null default 0;
+alter table public.profiles add column if not exists quota_reset_at timestamptz;
 
 -- Aynı telefonla iki öğrenci hesabı açılamaz
 create unique index if not exists profiles_student_phone_uq on public.profiles (phone) where role = 'student' and phone <> '';
@@ -353,7 +356,12 @@ begin
 
   -- RANDEVU SIKLIĞI: yeni üye ilk N randevuyu haftada 1, sonra 2 haftada 1 oluşturabilir.
   -- İptal edilen randevular sayılmaz (hak geri gelir). Süre son randevunun OLUŞTURULDUĞU andan başlar.
-  select count(*), max(created_at) into used, last_at from appointments
+  -- Yönetici düzeltmeleri: intro_used_extra (dışarıda kullanılmış haklar),
+  -- quota_reset_at (bu andan önce oluşturulan randevular bekleme süresini etkilemez)
+  select count(*) + coalesce(me.intro_used_extra, 0),
+         max(created_at) filter (where me.quota_reset_at is null or created_at > me.quota_reset_at)
+    into used, last_at
+    from appointments
    where student_id = me.id and status <> 'cancelled';
   gap := case
     when me.veteran or used >= coalesce((s ->> 'introBookings')::int, 4) then coalesce((s ->> 'regularGapDays')::int, 14)
@@ -494,7 +502,7 @@ create policy "kanal: kendin veya yönetici okur" on public.student_channels
   for select to authenticated using (student_id = auth.uid() or public.is_admin());
 drop policy if exists "kanal: kendin ekler" on public.student_channels;
 create policy "kanal: kendin ekler" on public.student_channels
-  for insert to authenticated with check (student_id = auth.uid());
+  for insert to authenticated with check (student_id = auth.uid() or public.is_admin());
 drop policy if exists "kanal: kendin veya yönetici düzenler" on public.student_channels;
 create policy "kanal: kendin veya yönetici düzenler" on public.student_channels
   for update to authenticated using (student_id = auth.uid() or public.is_admin())

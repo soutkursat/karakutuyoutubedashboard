@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApptCard } from '../../components/ApptCard'
+import { AskWhatsappButton } from '../../components/AskWhatsapp'
 import { Empty, Field, PageHeader } from '../../components/Common'
 import { IconCalendar, IconCalendarPlus, IconVideo, IconWhatsapp, IconX } from '../../components/Icons'
 import { Modal } from '../../components/Modal'
@@ -55,10 +56,14 @@ export function MyAppointments() {
       <PageHeader
         eyebrow="Takvim"
         title="Randevularım"
+        desc="Randevunu beklerken sorularını WhatsApp’tan sormaya devam edebilirsin."
         actions={
-          <Link to="/panel/randevu-al" className="btn btn-primary">
-            <IconCalendarPlus size={18} /> Yeni randevu
-          </Link>
+          <>
+            <AskWhatsappButton />
+            <Link to="/panel/randevu-al" className="btn btn-primary">
+              <IconCalendarPlus size={18} /> Yeni randevu
+            </Link>
+          </>
         }
       />
       <div className="seg">

@@ -1,6 +1,6 @@
-# Kara Kutu · Mentörlük Paneli
+# Kara Kutu YouTube Akademisi · Mentörlük Paneli
 
-Kara Kutu YouTube Akademi öğrencileri için randevu sistemi.
+Kara Kutu YouTube Akademisi öğrencileri için randevu sistemi.
 Öğrenci giriş yapar → müsait saati seçer → randevu oluşur → açılan pop-up'tan **tek tuşla WhatsApp'a**
 (+90 537 793 50 90) hazır mesaj olarak bildirir. Sen de randevuları hem WhatsApp'ta hem de yönetim panelinde görürsün.
 
@@ -74,8 +74,9 @@ npm run dev                  # http://localhost:5173
 **Randevu sıklığı** (sunucuda uygulanır)
 - Yeni üye: ilk 4 randevuyu 7 günde 1, sonrasında 14 günde 1 (sayılar Müsaitlik sayfasından değiştirilebilir)
 - Süre son randevunun oluşturulduğu andan başlar; iptal edilen randevu sayılmaz (hak geri gelir)
-- Yönetici bir öğrenciyi "eski öğrenci" yaparsa doğrudan 14 günlük kurala geçer
-- Hakkı dolan öğrenci randevu sayfasında kalan süreyi gösteren pop-up görür
+- Yönetici öğrenci formundan (Öğrenciler → Düzenle → Randevu hakkı): yeni üye / eski öğrenci seçer,
+  kalan haftalık hakkı ayarlar, gerekirse "Beklemeyi kaldır" ile hemen yeni hak verir
+- Hakkı dolan öğrenci randevu sayfasında kalan süreyi gösteren pop-up görür; beklerken WhatsApp'tan soru sorabilir
 
 **Yönetim paneli** (sadece `kursatyoutube`)
 - Genel bakış: bugün, onay bekleyen, 7 gün, öğrenci sayısı

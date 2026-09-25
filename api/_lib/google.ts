@@ -107,7 +107,7 @@ function eventBody(a: ApptRow, s: StudentRow | undefined) {
   const confirmed = a.status === 'confirmed'
   const name = s?.name ?? 'Öğrenci'
   return {
-    summary: `${confirmed ? '' : '[Onay bekliyor] '}Kara Kutu Mentörlük · ${name}`,
+    summary: `${confirmed ? '' : '[Onay bekliyor] '}Kara Kutu YouTube Akademisi · ${name}`,
     description: [
       `Konu: ${a.topic}`,
       a.note ? `Not: ${a.note}` : '',
@@ -117,7 +117,7 @@ function eventBody(a: ApptRow, s: StudentRow | undefined) {
       s?.email ? `E-posta: ${s.email}` : '',
       `Randevu No: ${a.code}`,
       '',
-      'Bu etkinlik Kara Kutu randevu panelinden otomatik oluşturuldu.',
+      'Bu etkinlik Kara Kutu YouTube Akademisi randevu panelinden otomatik oluşturuldu.',
     ]
       .filter((l, i, arr) => l !== '' || (i > 0 && arr[i - 1] !== ''))
       .join('\n'),

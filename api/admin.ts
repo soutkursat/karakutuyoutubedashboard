@@ -66,14 +66,14 @@ export async function POST(request: Request): Promise<Response> {
       if (password.length < 6) return json({ error: 'Şifre en az 6 karakter olmalı.' }, 400)
       // Kayıt kapalı / davet kodu kurallarını yönetici için atlamak üzere sunucu anahtarı
       const { data: sec } = await sb.from('app_secrets').select('admin_bypass').eq('id', 1).single()
-      const { error } = await sb.auth.admin.createUser({
+      const { data: created, error } = await sb.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
         user_metadata: { name, phone, bypass: sec?.admin_bypass },
       })
       if (error) return json({ error: authMessage(error.message) }, 400)
-      return json({ ok: true })
+      return json({ ok: true, id: created.user?.id })
     }
     case 'update': {
       if (name.length < 3 || !EMAIL_RE.test(email) || !PHONE_RE.test(phone)) return json({ error: 'Bilgiler eksik ya da hatalı.' }, 400)

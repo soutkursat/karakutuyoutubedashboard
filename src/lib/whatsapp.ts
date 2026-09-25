@@ -17,7 +17,7 @@ const phoneOf = (u: User) => (u.phone ? formatPhone(u.phone) : 'Belirtilmemiş')
 /** Öğrenci → Mentör: yeni randevu bildirimi */
 export function newBookingMessage(a: Appointment, student: User) {
   return lines(
-    '*KARA KUTU YOUTUBE AKADEMİ*',
+    '*KARA KUTU YOUTUBE AKADEMİSİ*',
     '*Yeni Mentörlük Randevusu*',
     '',
     'Merhaba, sistem üzerinden yeni bir mentörlük randevusu oluşturdum.',
@@ -38,7 +38,7 @@ export function newBookingMessage(a: Appointment, student: User) {
 /** Öğrenci → Mentör: iptal bildirimi */
 export function cancelMessage(a: Appointment, student: User) {
   return lines(
-    '*KARA KUTU YOUTUBE AKADEMİ*',
+    '*KARA KUTU YOUTUBE AKADEMİSİ*',
     '*Randevu İptali*',
     '',
     'Merhaba, aşağıdaki randevumu iptal ettim.',
@@ -54,7 +54,7 @@ export function cancelMessage(a: Appointment, student: User) {
 export function toStudentMessage(a: Appointment, student: User) {
   return lines(
     `Merhaba ${student.name.split(' ')[0]},`,
-    'Kara Kutu YouTube Akademi mentörlük randevun hakkında bilgi:',
+    'Kara Kutu YouTube Akademisi mentörlük randevun hakkında bilgi:',
     '',
     `*Tarih:* ${formatDateLong(a.start)}`,
     `*Saat:* ${formatTime(a.start)} - ${formatTime(a.end)} (TR saati)`,
@@ -63,6 +63,11 @@ export function toStudentMessage(a: Appointment, student: User) {
     '',
     `*Randevu No:* ${a.code}`,
   )
+}
+
+/** Öğrenci → Mentör: bekleme sürecinde soru sormak için hazır başlangıç */
+export function questionMessage(student: User) {
+  return lines('*KARA KUTU YOUTUBE AKADEMİSİ*', '', `Merhaba, ben ${student.name}. Bir sorum var:`, '')
 }
 
 export function openWhatsapp(url: string) {

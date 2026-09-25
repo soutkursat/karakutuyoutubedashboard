@@ -77,6 +77,8 @@ interface ProfileRow {
   admin_note: string
   skool_member?: boolean
   veteran?: boolean
+  intro_used_extra?: number
+  quota_reset_at?: string | null
   created_at: string
 }
 interface ApptRow {
@@ -109,6 +111,8 @@ const toUser = (r: ProfileRow): User => ({
   adminNote: r.admin_note || undefined,
   skoolMember: !!r.skool_member,
   veteran: !!r.veteran,
+  introUsedExtra: r.intro_used_extra ?? 0,
+  quotaResetAt: r.quota_reset_at ?? null,
   createdAt: r.created_at,
 })
 
@@ -647,15 +651,104 @@ export async function googleSyncNow() {
   if (!r.connected) throw new AppError('Google Takvim bağlı değil.')
 }
 
-export async function adminCreateStudent(input: RegisterInput) {
-  const f = validateStudentFields(input)
-  validatePassword(input.password)
-  await adminApi({ action: 'create', ...f, password: input.password })
+/** Yöneticinin öğrenci ekle/düzenle formu (kayıt formundaki her şey + haklar) */
+export interface StudentForm {
+  name: string
+  email: string
+  phone: string
+  /** Yeni öğrencide zorunlu; düzenlemede boşsa değişmez */
+  password: string
+  adminNote: string
+  skoolMember: boolean
+  veteran: boolean
+  /** Yeni üye döneminde kalan haftalık hak (veteran=false iken) */
+  introLeft: number
+  channels: (ChannelInput & { id?: string })[]
 }
 
-export async function adminUpdateStudent(id: string, patch: { name: string; email: string; phone: string; adminNote?: string }) {
-  const f = validateStudentFields(patch)
-  await adminApi({ action: 'update', id, ...f, adminNote: clean(patch.adminNote ?? '', 500) })
+/** Profil ek alanları + kanallar (yönetici RLS yetkisiyle) */
+async function saveStudentExtras(id: string, form: StudentForm, channels: ReturnType<typeof validateChannel>[]) {
+  const counted = state.appts.filter((a) => a.studentId === id && a.status !== 'cancelled').length
+  const introLeft = Math.max(0, Math.min(20, Math.round(form.introLeft)))
+  must(
+    await supabase
+      .from('profiles')
+      .update({
+        skool_member: form.skoolMember,
+        veteran: form.veteran,
+        // Kalan hak = introBookings - (randevu sayısı + düzeltme) → düzeltme = introBookings - kalan - randevu sayısı
+        intro_used_extra: form.veteran ? 0 : state.settings.introBookings - introLeft - counted,
+      })
+      .eq('id', id),
+  )
+  // Kanallar: formdaki listeyle veritabanını eşitle
+  const existing = getChannels(id)
+  const keepIds = new Set(form.channels.map((c) => c.id).filter(Boolean))
+  for (const c of existing) {
+    if (!keepIds.has(c.id)) must(await supabase.from('student_channels').delete().eq('id', c.id))
+  }
+  for (let i = 0; i < form.channels.length; i++) {
+    const src = form.channels[i]
+    const row = channels[i]
+    if (src.id) {
+      const old = existing.find((c) => c.id === src.id)
+      if (old && (old.url !== row.url || old.monetized !== row.monetized || old.startedOn !== row.started_on)) {
+        must(await supabase.from('student_channels').update(row).eq('id', src.id))
+      }
+    } else {
+      must(await supabase.from('student_channels').insert({ ...row, student_id: id }))
+    }
+  }
+}
+
+function prepareStudentForm(form: StudentForm, isNew: boolean) {
+  const f = validateStudentFields(form)
+  if (isNew || form.password) validatePassword(form.password)
+  // Boş satırları at, kalanları ağa gitmeden önce doğrula (yarım kayıt olmasın)
+  const filled = form.channels.filter((c) => c.url.trim())
+  const channels = filled.map((c, i) => {
+    try {
+      return validateChannel(c)
+    } catch (e) {
+      throw new AppError(`${i + 1}. kanal: ${toAppError(e).message}`)
+    }
+  })
+  const urls = channels.map((c) => c.url.toLowerCase())
+  if (new Set(urls).size !== urls.length) throw new AppError('Aynı kanal iki kez eklenmiş.')
+  return { f, channels, form: { ...form, channels: filled } }
+}
+
+export async function adminCreateStudent(form: StudentForm) {
+  const { f, channels, form: cleanForm } = prepareStudentForm(form, true)
+  const { id } = await callApi<{ id?: string }>('/api/admin', { action: 'create', ...f, password: form.password })
+  if (id) {
+    await refresh()
+    try {
+      await saveStudentExtras(id, cleanForm, channels)
+      if (form.adminNote.trim()) await callApi('/api/admin', { action: 'update', id, ...f, adminNote: clean(form.adminNote, 500) })
+    } finally {
+      await refresh()
+    }
+  } else {
+    await refresh()
+  }
+}
+
+export async function adminUpdateStudent(id: string, form: StudentForm) {
+  const { f, channels, form: cleanForm } = prepareStudentForm(form, false)
+  await callApi('/api/admin', { action: 'update', id, ...f, adminNote: clean(form.adminNote, 500) })
+  if (form.password) await callApi('/api/admin', { action: 'password', id, password: form.password })
+  try {
+    await saveStudentExtras(id, cleanForm, channels)
+  } finally {
+    await refresh()
+  }
+}
+
+/** Beklemeyi kaldır: öğrenci hemen yeni randevu oluşturabilir */
+export async function adminResetQuota(id: string) {
+  must(await supabase.from('profiles').update({ quota_reset_at: new Date().toISOString() }).eq('id', id))
+  await refresh()
 }
 
 export async function adminResetPassword(id: string, next: string) {

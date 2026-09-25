@@ -1,5 +1,7 @@
 import type { AppointmentStatus } from './types'
 
+export const BRAND = 'Kara Kutu YouTube Akademisi'
+
 export const STATUS_LABEL: Record<AppointmentStatus, string> = {
   pending: 'Onay bekliyor',
   confirmed: 'Onaylandı',

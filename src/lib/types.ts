@@ -14,6 +14,10 @@ export interface User {
   skoolMember: boolean
   /** Eski öğrenci: yeni üye dönemini atlar, doğrudan 2 haftada 1 (yönetici işaretler) */
   veteran: boolean
+  /** Sistem dışında kullanılmış yeni üye hakkı (yönetici girer; negatif = ekstra hak) */
+  introUsedExtra: number
+  /** Yönetici "beklemeyi kaldır" dediği an; öncesindeki randevular bekleme süresini etkilemez */
+  quotaResetAt: string | null
   createdAt: string
   adminNote?: string
 }

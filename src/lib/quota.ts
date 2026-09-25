@@ -3,6 +3,7 @@
  * - Yeni üye: ilk `introBookings` (4) randevuyu `introGapDays` (7) günde bir oluşturabilir.
  * - Sonra (ya da "eski öğrenci" işaretliyse): `regularGapDays` (14) günde bir.
  * - Süre son randevunun OLUŞTURULDUĞU andan başlar. İptal edilen randevular sayılmaz.
+ * - Yönetici düzeltmeleri: introUsedExtra (dışarıda kullanılmış haklar), quotaResetAt (beklemeyi kaldır).
  * Burası sadece arayüzde bilgi göstermek içindir; asıl kontrol sunucuda.
  */
 import type { Appointment, Settings, User } from './types'
@@ -24,10 +25,15 @@ export interface Quota {
 
 export function computeQuota(user: User, appts: Appointment[], s: Settings, now = Date.now()): Quota {
   const counted = appts.filter((a) => a.studentId === user.id && a.status !== 'cancelled')
-  const used = counted.length
+  const used = counted.length + (user.introUsedExtra ?? 0)
   const intro = !user.veteran && used < s.introBookings
   const gapDays = intro ? s.introGapDays : s.regularGapDays
-  const last = counted.reduce((m, a) => Math.max(m, new Date(a.createdAt).getTime()), 0)
+  // Yönetici "beklemeyi kaldır" dediyse o andan önceki randevular süreyi etkilemez
+  const resetAt = user.quotaResetAt ? new Date(user.quotaResetAt).getTime() : 0
+  const last = counted.reduce((m, a) => {
+    const t = new Date(a.createdAt).getTime()
+    return t > resetAt ? Math.max(m, t) : m
+  }, 0)
   const nextAt = last ? last + gapDays * 86400_000 : null
   const canBook = !nextAt || now >= nextAt
   return { canBook, nextAt: canBook ? null : nextAt, used, intro, introLeft: Math.max(0, s.introBookings - used), gapDays }

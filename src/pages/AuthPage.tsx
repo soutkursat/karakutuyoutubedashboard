@@ -71,7 +71,7 @@ export function AuthPage() {
 
       <div className="auth-grid">
         <section className="auth-hero">
-          <span className="chip-outline">KARA KUTU YOUTUBE AKADEMİ</span>
+          <span className="chip-outline">KARA KUTU YOUTUBE AKADEMİSİ</span>
           <h1 className="display">
             Mentörlüğünü planla,
             <br />

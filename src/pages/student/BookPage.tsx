@@ -4,6 +4,7 @@ import { Field, PageHeader } from '../../components/Common'
 import { BookingSuccess } from '../../components/BookingSuccess'
 import { IconCalendarPlus, IconClock, IconVideo } from '../../components/Icons'
 import { Modal } from '../../components/Modal'
+import { AskWhatsappButton } from '../../components/AskWhatsapp'
 import { useToast } from '../../components/Toast'
 import { bookAppointment, currentUser, getAppointments, getBusy, getSettings } from '../../lib/db'
 import { useDataVersion, useNow } from '../../lib/hooks'
@@ -77,8 +78,9 @@ export function BookPage() {
           <IconClock size={18} />
           <span>
             Yeni randevu hakkın <strong>{formatRemaining(quota.nextAt - now)}</strong> sonra açılacak
-            ({formatDateLong(new Date(quota.nextAt))} {formatTime(new Date(quota.nextAt))}).
+            ({formatDateLong(new Date(quota.nextAt))} {formatTime(new Date(quota.nextAt))}). Bu süreçte sorularını WhatsApp’tan sorabilirsin.
           </span>
+          <AskWhatsappButton className="btn-sm" />
         </div>
       )}
 
@@ -221,9 +223,10 @@ export function BookPage() {
               <em>{formatDateLong(new Date(quota.nextAt))} · {formatTime(new Date(quota.nextAt))}</em>
             </div>
           )}
-          <button className="btn btn-primary btn-block" onClick={() => navigate('/panel/randevularim')}>
-            Randevularıma git
-          </button>
+          <div className="wa-note">
+            <p>Bu süreçte sorularını WhatsApp’tan sormaya devam edebilirsin.</p>
+            <AskWhatsappButton className="btn-block" label="WhatsApp’tan yaz" />
+          </div>
           <button className="btn btn-text btn-block" onClick={() => setQuotaOpen(false)}>
             Tamam
           </button>

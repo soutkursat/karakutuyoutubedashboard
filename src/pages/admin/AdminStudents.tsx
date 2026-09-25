@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { ChannelRow } from '../../components/ChannelsCard'
-import { Empty, Field, PageHeader, PasswordInput, StatusBadge, Switch } from '../../components/Common'
+import { Empty, PageHeader, StatusBadge } from '../../components/Common'
+import { StudentFormModal } from '../../components/StudentFormModal'
 import { IconBan, IconCheck, IconEdit, IconPlus, IconSearch, IconTrash, IconUsers, IconWhatsapp } from '../../components/Icons'
 import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
-import { adminCreateStudent, adminResetPassword, adminUpdateStudent, deleteStudent, getAppointments, getChannels, getSettings, getStudents, getUser, setUserStatus, setVeteran } from '../../lib/db'
+import { deleteStudent, getAppointments, getChannels, getSettings, getStudents, getUser, setUserStatus } from '../../lib/db'
 import { computeQuota, formatRemaining, quotaRuleText } from '../../lib/quota'
 import { useDataVersion, useNow } from '../../lib/hooks'
 import { formatDate, formatDayMonth, formatTime } from '../../lib/time'
@@ -12,8 +13,6 @@ import type { User } from '../../lib/types'
 import { cx, errMsg, initials } from '../../lib/ui'
 import { formatPhone } from '../../lib/validation'
 import { openWhatsapp, waLink } from '../../lib/whatsapp'
-
-const EMPTY = { name: '', email: '', phone: '', password: '', adminNote: '' }
 
 const FILTERS = [
   { id: 'all', label: 'Tümü' },
@@ -33,7 +32,6 @@ export function AdminStudents() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const detail = detailId ? getUser(detailId) : undefined
   const [edit, setEdit] = useState<User | 'new' | null>(null)
-  const [form, setForm] = useState(EMPTY)
   const [del, setDel] = useState<User | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -70,24 +68,7 @@ export function AdminStudents() {
     )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
-  const open = (u: User | 'new') => {
-    setEdit(u)
-    setForm(u === 'new' ? EMPTY : { name: u.name, email: u.email, phone: formatPhone(u.phone), password: '', adminNote: u.adminNote ?? '' })
-  }
-
-  const save = async () => {
-    if (!edit) return
-    const ok =
-      edit === 'new'
-        ? await run(() => adminCreateStudent(form), 'Öğrenci eklendi')
-        : await run(async () => {
-            await adminUpdateStudent(edit.id, form)
-            if (form.password) await adminResetPassword(edit.id, form.password)
-          }, 'Öğrenci güncellendi')
-    if (ok) setEdit(null)
-  }
-
-  const f = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((s) => ({ ...s, [k]: e.target.value }))
+  const open = (u: User | 'new') => setEdit(u)
 
   return (
     <>
@@ -173,28 +154,7 @@ export function AdminStudents() {
         </div>
       )}
 
-      <Modal
-        open={!!edit}
-        onClose={() => setEdit(null)}
-        title={edit === 'new' ? 'Yeni öğrenci' : 'Öğrenciyi düzenle'}
-        footer={<><button className="btn btn-ghost" onClick={() => setEdit(null)}>Vazgeç</button><button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? 'Kaydediliyor…' : 'Kaydet'}</button></>}
-      >
-        <div className="form">
-          <Field label="Ad soyad"><input className="input" value={form.name} onChange={f('name')} /></Field>
-          <div className="grid-2">
-            <Field label="E-posta"><input className="input" type="email" value={form.email} onChange={f('email')} /></Field>
-            <Field label="Telefon"><input className="input" type="tel" value={form.phone} onChange={f('phone')} /></Field>
-          </div>
-          <Field label={edit === 'new' ? 'Şifre' : 'Yeni şifre (boş bırakırsan değişmez)'} hint="En az 6 karakter. Öğrenciye WhatsApp’tan iletebilirsin.">
-            <PasswordInput autoComplete="new-password" value={form.password} onChange={f('password')} />
-          </Field>
-          {edit !== 'new' && (
-            <Field label="Özel not (sadece sen görürsün)">
-              <textarea className="input" rows={3} value={form.adminNote} onChange={f('adminNote')} placeholder="Kanal linki, paket bilgisi, hedefler…" />
-            </Field>
-          )}
-        </div>
-      </Modal>
+      {edit && <StudentFormModal key={edit === 'new' ? 'new' : edit.id} user={edit} onClose={() => setEdit(null)} />}
 
       <Modal
         open={!!detail}
@@ -237,20 +197,16 @@ export function AdminStudents() {
                 </div>
               </div>
 
-              <label className="toggle-row">
+              <div className="toggle-row">
                 <div>
-                  <strong>Eski öğrenci</strong>
+                  <strong>{detail.veteran ? 'Eski öğrenci' : 'Yeni üye'}</strong>
                   <p className="muted">
                     {quotaRuleText(detail, settings, true)}
-                    {qt.intro && ` Kalan yeni üye hakkı: ${qt.introLeft}/${settings.introBookings}.`}
+                    {qt.intro && ` Kalan haftalık hak: ${qt.introLeft}/${settings.introBookings}.`}
                   </p>
                 </div>
-                <Switch
-                  checked={detail.veteran}
-                  label="Eski öğrenci"
-                  onChange={(v) => void run(() => setVeteran(detail.id, v), v ? 'Eski öğrenci olarak işaretlendi' : 'Yeni üye kuralına alındı')}
-                />
-              </label>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setDetailId(null); open(detail) }}>Hakları düzenle</button>
+              </div>
 
               <div>
                 <h4 className="detail-h">YouTube kanalları <em>{chs.length}</em></h4>
