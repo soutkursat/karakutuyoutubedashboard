@@ -51,7 +51,7 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                 <>
                   <p className="appt-sub">
                     <span className="chip static sm">{a.topic}</span>
-                    {s && <span className="muted">{formatPhone(s.phone)} · {s.email}</span>}
+                    {s && <span className="muted">{s.phone ? `${formatPhone(s.phone)} · ` : ''}{s.email}</span>}
                     {a.whatsappNotifiedAt ? (
                       <span className="tag tag-wa"><IconWhatsapp size={12} /> Bildirildi</span>
                     ) : (

@@ -48,7 +48,7 @@ export function AdminSettings() {
             <Field label="WhatsApp bildirim numarası" hint={`Öğrenci mesajları buraya gelir · ${formatPhone(s.whatsappNumber.replace(/\D/g, ''))}`}>
               <input className="input" type="tel" value={s.whatsappNumber} onChange={(e) => set('whatsappNumber', e.target.value)} />
             </Field>
-            <Field label="Varsayılan Google Meet linki" hint="Sabit bir Meet odan varsa, onaylanan randevulara otomatik eklenir.">
+            <Field label="Varsayılan Google Meet linki" hint="Google Takvim bağlıysa boş bırak: her randevuya otomatik yeni Meet linki oluşur. Bağlı değilse sabit Meet odanı yazabilirsin.">
               <input className="input" value={s.defaultMeetLink} onChange={(e) => set('defaultMeetLink', e.target.value)} placeholder="https://meet.google.com/..." />
             </Field>
             <div className="toggle-row">

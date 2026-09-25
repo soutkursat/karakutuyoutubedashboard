@@ -34,6 +34,13 @@ export function StudentHome() {
         }
       />
 
+      {!user.phone && (
+        <div className="notice notice-warn">
+          <span>WhatsApp numaran kayıtlı değil. Randevu bildirimlerinde görünmesi için</span>
+          <Link className="link" to="/panel/profil">profiline ekle</Link>
+        </div>
+      )}
+
       {unnotified.length > 0 && (
         <div className="notice notice-wa">
           <IconWhatsapp size={18} />

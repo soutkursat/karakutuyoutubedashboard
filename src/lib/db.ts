@@ -261,7 +261,10 @@ export async function init() {
   void loadPublicConfig()
   try {
     const { data } = await supabase.auth.getSession()
-    if (data.session) await loadAll(data.session.user.id)
+    if (data.session) {
+      await loadAll(data.session.user.id)
+      kickSync(false)
+    }
   } catch (e) {
     console.warn('Oturum yüklenemedi', e)
   } finally {
@@ -286,13 +289,18 @@ export async function init() {
     .subscribe()
 
   // Diğer öğrencilerin aldığı saatler için düzenli yenileme + sekmeye dönünce yenileme
-  setInterval(() => document.visibilityState === 'visible' && refresh(), 60_000)
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return
+    void refresh()
+    kickSync(false)
+  }, 60_000)
   window.addEventListener('focus', scheduleRefresh)
 }
 
 async function refreshFor(userId: string) {
   try {
     await loadAll(userId)
+    kickSync(false)
   } catch (e) {
     console.warn(e)
   }
@@ -411,6 +419,7 @@ export async function bookAppointment(input: BookInput): Promise<Appointment> {
         .rpc('book_appointment', { p_start: input.start, p_topic: topic, p_note: input.note.trim().slice(0, 600) })
         .single<ApptRow>(),
     )
+    kickSync(true)
     return toAppt(row)
   } finally {
     // Başarılı ya da başarısız: dolu saatleri tazele
@@ -428,6 +437,7 @@ export function canStudentCancel(a: Appointment, now = Date.now()) {
 export async function cancelByStudent(_studentId: string, apptId: string, reason: string): Promise<Appointment> {
   const row = must(await supabase.rpc('cancel_my_appointment', { p_id: apptId, p_reason: clean(reason, 300) }).single<ApptRow>())
   await refresh()
+  kickSync(true)
   return toAppt(row)
 }
 
@@ -445,6 +455,7 @@ export async function markWhatsappNotified(apptId: string) {
 export async function setAppointmentStatus(apptId: string, status: AppointmentStatus, reason = '') {
   must(await supabase.rpc('admin_set_appointment_status', { p_id: apptId, p_status: status, p_reason: clean(reason, 300) }))
   await refresh()
+  kickSync(true)
 }
 
 export async function setMeetLink(apptId: string, link: string) {
@@ -454,14 +465,14 @@ export async function setMeetLink(apptId: string, link: string) {
   await refresh()
 }
 
-/** Kullanıcı oluşturma/silme gibi işlemler gizli anahtar gerektirir → Vercel sunucu fonksiyonu (api/admin.ts) */
-async function adminApi(body: Record<string, unknown>) {
+/** Vercel sunucu fonksiyonunu (api/*) oturum anahtarıyla çağırır. */
+async function callApi<T = Record<string, unknown>>(path: string, body: Record<string, unknown>): Promise<T> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new AppError('Oturumun sona erdi. Tekrar giriş yap.')
   let res: Response
   try {
-    res = await fetch('/api/admin', {
+    res = await fetch(path, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
@@ -472,9 +483,93 @@ async function adminApi(body: Record<string, unknown>) {
   if (res.status === 404) {
     throw new AppError('Bu işlem sunucu fonksiyonu gerektirir; sadece Vercel üzerinde (veya "vercel dev" ile) çalışır.')
   }
-  const json = (await res.json().catch(() => ({}))) as { error?: string }
+  const json = (await res.json().catch(() => ({}))) as T & { error?: string }
   if (!res.ok) throw new AppError(json.error || 'İşlem başarısız oldu.')
+  return json
+}
+
+/** Kullanıcı oluşturma/silme gibi işlemler gizli anahtar gerektirir → api/admin.ts */
+async function adminApi(body: Record<string, unknown>) {
+  await callApi('/api/admin', body)
   await refresh()
+}
+
+// ---------- Google Takvim ----------
+export interface GoogleStatus {
+  configured: boolean
+  connected: boolean
+  email: string | null
+  lastSyncedAt: string | null
+  lastError: string | null
+  redirectUri: string
+}
+interface SyncResponse {
+  connected: boolean
+  synced: boolean
+  error?: string
+}
+
+let google: GoogleStatus | null = null
+let googleLoadError = ''
+export const getGoogleStatus = () => google
+export const getGoogleLoadError = () => googleLoadError
+
+let syncing = false
+let syncQueued = false
+/**
+ * Google senkronunu arka planda tetikler (randevu → takvim etkinliği + Meet linki, takvim → dolu saatler).
+ * Hata olursa kullanıcıyı rahatsız etmez; yönetici durumu Müsaitlik sayfasında görür.
+ */
+export function kickSync(force: boolean) {
+  if (!isConfigured || !state.me) return
+  if (syncing) {
+    syncQueued = syncQueued || force
+    return
+  }
+  syncing = true
+  void (async () => {
+    try {
+      const r = await callApi<SyncResponse>('/api/google', { action: 'sync', force })
+      if (r.synced) await refresh()
+      if (state.me?.role === 'admin' && (r.synced || r.error)) await loadGoogleStatus()
+    } catch {
+      // Yerel geliştirmede api yoktur ya da Google bağlı değildir: sessizce geç
+    } finally {
+      syncing = false
+      if (syncQueued) {
+        syncQueued = false
+        setTimeout(() => kickSync(true), 1500)
+      }
+    }
+  })()
+}
+
+export async function loadGoogleStatus() {
+  try {
+    google = await callApi<GoogleStatus>('/api/google', { action: 'status' })
+    googleLoadError = ''
+  } catch (e) {
+    googleLoadError = toAppError(e).message
+  }
+  emit()
+}
+
+/** Google izin ekranına yönlendirir. */
+export async function googleConnect() {
+  const { url } = await callApi<{ url: string }>('/api/google', { action: 'connect' })
+  window.location.href = url
+}
+
+export async function googleDisconnect() {
+  await callApi('/api/google', { action: 'disconnect' })
+  await Promise.all([loadGoogleStatus(), refresh()])
+}
+
+export async function googleSyncNow() {
+  const r = await callApi<SyncResponse>('/api/google', { action: 'sync', force: true })
+  await Promise.all([loadGoogleStatus(), refresh()])
+  if (r.error) throw new AppError(r.error)
+  if (!r.connected) throw new AppError('Google Takvim bağlı değil.')
 }
 
 export async function adminCreateStudent(input: RegisterInput) {
@@ -500,6 +595,7 @@ export async function deleteStudent(id: string) {
 export async function setUserStatus(id: string, status: 'active' | 'disabled') {
   must(await supabase.rpc('admin_set_user_status', { p_id: id, p_status: status }))
   await refresh()
+  kickSync(true)
 }
 
 export async function saveSettings(next: Settings) {

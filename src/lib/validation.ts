@@ -14,6 +14,7 @@ export function normalizePhone(input: string): string | null {
 }
 
 export function formatPhone(d: string): string {
+  if (!d) return ''
   if (d.startsWith('90') && d.length === 12) {
     return `+90 ${d.slice(2, 5)} ${d.slice(5, 8)} ${d.slice(8, 10)} ${d.slice(10)}`
   }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Field, PageHeader, Switch } from '../../components/Common'
+import { GoogleCalendarCard } from '../../components/GoogleCalendarCard'
 import { IconPlus, IconTrash } from '../../components/Icons'
 import { useToast } from '../../components/Toast'
 import { getSettings, saveSettings } from '../../lib/db'
@@ -55,7 +56,7 @@ export function AdminAvailability() {
       <PageHeader
         eyebrow="Yönetim"
         title="Müsaitlik"
-        desc="Haftalık çalışma saatlerini belirle; sistem bu aralıkları otomatik olarak randevu slotlarına böler."
+        desc="Haftalık çalışma saatlerini belirle; sistem bu aralıkları randevu slotlarına böler. Google Takvimindeki dolu saatler ayrıca otomatik kapanır."
         actions={
           <button className="btn btn-primary" onClick={save} disabled={!dirty || saving}>
             {saving ? 'Kaydediliyor…' : dirty ? 'Değişiklikleri kaydet' : 'Kaydedildi'}
@@ -119,6 +120,7 @@ export function AdminAvailability() {
         </section>
 
         <div className="stack">
+          <GoogleCalendarCard />
           <section className="card glass">
             <h3 className="card-title">Görüşme kuralları</h3>
             <div className="form">

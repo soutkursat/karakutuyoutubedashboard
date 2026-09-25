@@ -25,10 +25,30 @@ Import ekranında: Preset **Vite**, Root **./**, Build ayarları varsayılan. **
 | `VITE_SUPABASE_URL` | Project URL | |
 | `VITE_SUPABASE_ANON_KEY` | anon / publishable key | tarayıcıda görünür, güvenli |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role / secret key | **GİZLİ** — sadece sunucu fonksiyonu kullanır, kimseyle paylaşma |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud OAuth | **GİZLİ** — bkz. adım 3 |
 
 Deploy'dan sonra değişken eklersen/değiştirirsen **Redeploy** gerekir.
 
-### 3) Yerelde çalıştırma
+### 3) Google Takvim + otomatik Meet (isteğe bağlı ama önerilir)
+Bağlanınca: Google Takviminde dolu olduğun saatler öğrencilere otomatik kapanır, her randevu takvimine
+**otomatik Google Meet linkiyle** eklenir, onayladığında öğrenciye Google davet e-postası gider, iptalde etkinlik silinir.
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → yeni proje oluştur (ör. "Kara Kutu Panel").
+2. **APIs & Services → Library** → **Google Calendar API** → **Enable**.
+3. **APIs & Services → OAuth consent screen** (Google Auth Platform):
+   - User type: **External** · Uygulama adı: *Kara Kutu Panel* · destek e-postası: kendi Gmail'in
+   - **Audience → Publishing status → "Publish app" (In production)**. ⚠️ "Testing" modunda kalırsa
+     Google bağlantısı **7 günde bir kopar**.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**
+   - Application type: **Web application**
+   - **Authorized redirect URIs:** `https://SITE-ADRESIN/api/google-callback`
+     (tam adres Müsaitlik sayfasındaki Google kartında yazar)
+5. Çıkan **Client ID** ve **Client secret**'ı Vercel'e ekle: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` → **Redeploy**.
+6. Supabase SQL Editor'de `supabase/schema.sql`'i **tekrar** çalıştır (yeni tablolar eklenir, veriler silinmez).
+7. Panel → **Müsaitlik → Google Takvim → "Google hesabımı bağla"**. Google "doğrulanmamış uygulama" uyarısı
+   gösterirse **Gelişmiş → Kara Kutu Panel'e git** de (kendi uygulaman olduğu için güvenli), takvim iznini işaretle.
+
+### 4) Yerelde çalıştırma
 ```bash
 cp .env.example .env.local   # değerleri doldur
 npm install
@@ -78,6 +98,9 @@ src/
   pages/admin/       ← yönetim ekranları
   styles.css         ← tasarım sistemi (renkler, cam kartlar, grid dokusu)
 api/admin.ts         ← Vercel sunucu fonksiyonu (öğrenci ekle/sil/şifre sıfırla)
+api/google.ts        ← Google Takvim: bağlan / durum / senkron
+api/google-callback.ts ← Google izin ekranından dönüş
+api/_lib/            ← sunucu ortak kodu (Google senkron mantığı burada)
 supabase/schema.sql  ← veritabanı: tablolar, güvenlik kuralları, randevu fonksiyonları
 supabase/admin.sql   ← yönetici hesabını tanımlama
 AGENTS.md            ← Codex'in uyacağı proje kuralları
@@ -97,7 +120,5 @@ AGENTS.md            ← Codex'in uyacağı proje kuralları
 ## Yol haritası
 
 1. ~~**Aşama 2 — Gerçek sunucu (Supabase + Vercel)**~~ ✅
-2. **Aşama 3 — Google Takvim + Meet:** yöneticinin Google hesabı bir kez bağlanır; her randevuda otomatik
-   takvim etkinliği + Meet linki oluşur, öğrenciye davet e-postası gider. Google takviminde dolu olduğun
-   saatler panelde otomatik kapanır.
+2. ~~**Aşama 3 — Google Takvim + Meet**~~ ✅
 3. **Aşama 4 — Otomatik hatırlatmalar:** 24 saat / 1 saat önce e-posta (Resend) veya WhatsApp Business API.

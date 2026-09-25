@@ -97,7 +97,7 @@ export function AdminStudents() {
                         <div><strong>{u.name}</strong><span className="muted">{u.email}</span></div>
                       </div>
                     </td>
-                    <td className="nowrap">{formatPhone(u.phone)}</td>
+                    <td className="nowrap">{u.phone ? formatPhone(u.phone) : <span className="muted">—</span>}</td>
                     <td>{mine.filter((a) => a.status === 'completed').length} / {mine.filter((a) => a.status !== 'cancelled').length}</td>
                     <td className="nowrap muted">{formatDate(u.createdAt)}</td>
                     <td><span className={cx('badge', u.status === 'active' ? 'badge-confirmed' : 'badge-cancelled')}>{u.status === 'active' ? 'Aktif' : 'Askıda'}</span></td>

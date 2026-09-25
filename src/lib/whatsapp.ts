@@ -2,63 +2,67 @@ import type { Appointment, User } from './types'
 import { formatDateLong, formatTime } from './time'
 import { formatPhone } from './validation'
 
+// NOT: Mesajlarda emoji KULLANMIYORUZ. WhatsApp Masaüstü/Web, wa.me linkiyle gelen
+// bazı emojileri "�" olarak gösteriyor. Sadece düz metin + WhatsApp biçimi (*kalın*).
+
 const STATUS_TR = { pending: 'Onay bekliyor', confirmed: 'Onaylandı', completed: 'Tamamlandı', cancelled: 'İptal edildi' }
 
 export function waLink(phoneDigits: string, text: string) {
   return `https://wa.me/${phoneDigits}?text=${encodeURIComponent(text)}`
 }
 
+const lines = (...l: (string | null | false | undefined)[]) => l.filter((x) => x !== null && x !== false && x !== undefined).join('\n')
+const phoneOf = (u: User) => (u.phone ? formatPhone(u.phone) : 'Belirtilmemiş')
+
 /** Öğrenci → Mentör: yeni randevu bildirimi */
 export function newBookingMessage(a: Appointment, student: User) {
-  return [
-    '*Kara Kutu YouTube Akademi* 📌',
+  return lines(
+    '*KARA KUTU YOUTUBE AKADEMİ*',
+    '*Yeni Mentörlük Randevusu*',
+    '',
     'Merhaba, sistem üzerinden yeni bir mentörlük randevusu oluşturdum.',
     '',
-    `👤 *Ad Soyad:* ${student.name}`,
-    `📱 *Telefon:* ${formatPhone(student.phone)}`,
-    `📧 *E-posta:* ${student.email}`,
+    `*Ad Soyad:* ${student.name}`,
+    `*Telefon:* ${phoneOf(student)}`,
+    `*E-posta:* ${student.email}`,
     '',
-    `📅 *Tarih:* ${formatDateLong(a.start)}`,
-    `⏰ *Saat:* ${formatTime(a.start)} - ${formatTime(a.end)} (TR saati)`,
-    `🎯 *Konu:* ${a.topic}`,
-    a.note ? `📝 *Not:* ${a.note}` : null,
+    `*Tarih:* ${formatDateLong(a.start)}`,
+    `*Saat:* ${formatTime(a.start)} - ${formatTime(a.end)} (TR saati)`,
+    `*Konu:* ${a.topic}`,
+    a.note ? `*Not:* ${a.note}` : null,
     '',
-    `🔖 *Randevu No:* ${a.code}`,
-  ]
-    .filter((l) => l !== null)
-    .join('\n')
+    `*Randevu No:* ${a.code}`,
+  )
 }
 
 /** Öğrenci → Mentör: iptal bildirimi */
 export function cancelMessage(a: Appointment, student: User) {
-  return [
-    '*Kara Kutu YouTube Akademi* ❌',
+  return lines(
+    '*KARA KUTU YOUTUBE AKADEMİ*',
+    '*Randevu İptali*',
+    '',
     'Merhaba, aşağıdaki randevumu iptal ettim.',
     '',
-    `👤 ${student.name}`,
-    `📅 ${formatDateLong(a.start)} · ${formatTime(a.start)}`,
-    `🔖 ${a.code}`,
-    a.cancelReason ? `📝 Sebep: ${a.cancelReason}` : null,
-  ]
-    .filter((l) => l !== null)
-    .join('\n')
+    `*Ad Soyad:* ${student.name}`,
+    `*Tarih:* ${formatDateLong(a.start)} - ${formatTime(a.start)}`,
+    `*Randevu No:* ${a.code}`,
+    a.cancelReason ? `*Sebep:* ${a.cancelReason}` : null,
+  )
 }
 
 /** Mentör → Öğrenci: durum / Meet linki bilgisi */
 export function toStudentMessage(a: Appointment, student: User) {
-  return [
-    `Merhaba ${student.name.split(' ')[0]} 👋`,
-    'Kara Kutu YouTube Akademi mentörlük randevun hakkında:',
+  return lines(
+    `Merhaba ${student.name.split(' ')[0]},`,
+    'Kara Kutu YouTube Akademi mentörlük randevun hakkında bilgi:',
     '',
-    `📅 ${formatDateLong(a.start)}`,
-    `⏰ ${formatTime(a.start)} - ${formatTime(a.end)} (TR saati)`,
-    `📌 Durum: ${STATUS_TR[a.status]}`,
-    a.meetLink && a.status === 'confirmed' ? `🎥 Google Meet: ${a.meetLink}` : null,
+    `*Tarih:* ${formatDateLong(a.start)}`,
+    `*Saat:* ${formatTime(a.start)} - ${formatTime(a.end)} (TR saati)`,
+    `*Durum:* ${STATUS_TR[a.status]}`,
+    a.meetLink && a.status === 'confirmed' ? `*Google Meet:* ${a.meetLink}` : null,
     '',
-    `🔖 ${a.code}`,
-  ]
-    .filter((l) => l !== null)
-    .join('\n')
+    `*Randevu No:* ${a.code}`,
+  )
 }
 
 export function openWhatsapp(url: string) {

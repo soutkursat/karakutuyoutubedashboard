@@ -82,6 +82,39 @@ create table if not exists public.appointments (
     where (status in ('pending', 'confirmed'))
 );
 create index if not exists appointments_student_idx on public.appointments (student_id);
+-- Google Takvim eşleşmesi (v0.3)
+alter table public.appointments add column if not exists google_event_id text;
+alter table public.appointments add column if not exists google_synced_status text;
+
+-- ---------------------------------------------------------------------
+-- GOOGLE TAKVİM (sadece sunucu fonksiyonları erişir; politikası yok = tarayıcıdan okunamaz)
+-- ---------------------------------------------------------------------
+create table if not exists public.google_integration (
+  id               int primary key default 1 check (id = 1),
+  email            text,
+  refresh_token    text,
+  connected_at     timestamptz,
+  last_synced_at   timestamptz,
+  last_error       text,
+  sync_lock_until  timestamptz
+);
+insert into public.google_integration (id) values (1) on conflict (id) do nothing;
+
+-- OAuth bağlantısı sırasında sahte istekleri engellemek için tek kullanımlık anahtarlar
+create table if not exists public.oauth_states (
+  state       text primary key,
+  user_id     uuid not null,
+  created_at  timestamptz not null default now()
+);
+
+-- Google Takvimindeki dolu saatler (randevu sistemi dışındaki etkinlikler)
+create table if not exists public.external_busy (
+  id        bigserial primary key,
+  start_at  timestamptz not null,
+  end_at    timestamptz not null,
+  check (end_at > start_at)
+);
+create index if not exists external_busy_range_idx on public.external_busy using gist (tstzrange(start_at, end_at));
 create index if not exists appointments_start_idx on public.appointments (start_at);
 
 -- ---------------------------------------------------------------------
@@ -191,8 +224,35 @@ language sql stable security definer set search_path = public as $$
   from appointments a
   where auth.uid() is not null
     and a.status in ('pending', 'confirmed')
-    and a.end_at > p_from and a.start_at < p_to;
+    and a.end_at > p_from and a.start_at < p_to
+  union all
+  -- Mentörün Google Takvimindeki diğer etkinlikler
+  select e.start_at, e.end_at, false
+  from external_busy e
+  where auth.uid() is not null and e.end_at > p_from and e.start_at < p_to;
 $$;
+
+-- Aynı anda iki senkronizasyon çalışmasın (çift Google etkinliği oluşmasın)
+create or replace function public.google_try_lock(p_seconds int) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare got int;
+begin
+  update google_integration set sync_lock_until = now() + make_interval(secs => p_seconds)
+   where id = 1 and (sync_lock_until is null or sync_lock_until < now());
+  get diagnostics got = row_count;
+  return got > 0;
+end $$;
+
+-- Sunucu (api/google.ts) Google'dan okuduğu dolu saatleri tek seferde değiştirir
+create or replace function public.replace_external_busy(p_rows jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from external_busy where true;
+  insert into external_busy (start_at, end_at)
+  select (r ->> 'start')::timestamptz, (r ->> 'end')::timestamptz
+  from jsonb_array_elements(coalesce(p_rows, '[]'::jsonb)) r
+  where (r ->> 'end')::timestamptz > (r ->> 'start')::timestamptz;
+end $$;
 
 create or replace function public.book_appointment(p_start timestamptz, p_topic text, p_note text)
 returns public.appointments
@@ -246,6 +306,14 @@ begin
     if mins >= rs and mins + slot <= re and (mins - rs) % step = 0 then ok := true; end if;
   end loop;
   if not ok then raise exception 'Bu saat müsaitlik takviminde yok. Sayfayı yenileyip tekrar dene.'; end if;
+
+  -- Mentörün Google Takviminde bu saatte başka bir etkinlik var mı?
+  if exists (
+    select 1 from external_busy e
+     where tstzrange(e.start_at, e.end_at) && tstzrange(p_start, p_start + make_interval(mins => slot))
+  ) then
+    raise exception 'Bu saat artık uygun değil. Lütfen başka bir saat seç.';
+  end if;
 
   select count(*) into cnt from appointments
    where student_id = me.id and status in ('pending', 'confirmed') and end_at > now();
@@ -348,6 +416,11 @@ alter table public.profiles     enable row level security;
 alter table public.appointments enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.app_secrets  enable row level security;
+alter table public.google_integration enable row level security;
+alter table public.oauth_states       enable row level security;
+alter table public.external_busy      enable row level security;
+-- Bu üç tabloya tarayıcıdan hiçbir erişim yok (sadece service role)
+revoke all on public.google_integration, public.oauth_states, public.external_busy from anon, authenticated;
 
 drop policy if exists "profil: kendin veya yönetici okur" on public.profiles;
 create policy "profil: kendin veya yönetici okur" on public.profiles
@@ -393,6 +466,13 @@ grant execute on function public.update_my_profile(text, text) to authenticated;
 grant execute on function public.admin_set_appointment_status(uuid, text, text) to authenticated;
 grant execute on function public.admin_set_user_status(uuid, text) to authenticated;
 grant execute on function public.busy_slots(timestamptz, timestamptz) to authenticated;
+revoke execute on function public.replace_external_busy(jsonb) from public, anon, authenticated;
+revoke execute on function public.google_try_lock(int) from public, anon, authenticated;
+do $$ begin
+  grant execute on function public.replace_external_busy(jsonb) to service_role;
+  grant execute on function public.google_try_lock(int) to service_role;
+exception when undefined_object then null;
+end $$;
 grant execute on function public.public_config() to anon, authenticated;
 grant execute on function public.resolve_login(text) to anon, authenticated;
 grant execute on function public.check_signup(text, text, text) to anon, authenticated;

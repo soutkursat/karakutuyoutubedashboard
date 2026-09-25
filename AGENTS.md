@@ -27,7 +27,11 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
 - Saatler her zaman **Europe/Istanbul**. Tarih hesabı için `src/lib/time.ts` kullan, `new Date().getHours()` gibi
   yerel saat fonksiyonları KULLANMA.
 - Randevu slotları `src/lib/slots.ts` içinde üretilir; çakışma kontrolü de oradadır.
-- WhatsApp mesaj şablonları `src/lib/whatsapp.ts` içinde.
+- WhatsApp mesaj şablonları `src/lib/whatsapp.ts` içinde. **Mesajlarda emoji kullanma** (WhatsApp Masaüstü/Web
+  wa.me linkiyle gelen emojileri "�" olarak gösteriyor); sadece düz metin + `*kalın*`.
+- Google Takvim senkronu `api/_lib/google.ts` içinde (randevu → etkinlik + Meet, takvim → `external_busy`).
+  İstemci `kickSync()` ile tetikler; randevu durumunu değiştiren her yeni işlemden sonra `kickSync(true)` çağır.
+- `api/` altında göreli importlar `.js` uzantısıyla yazılır (`./_lib/server.js`), yoksa Vercel'de çalışmaz.
 - Arayüz metinleri Türkçe.
 
 ## Tasarım dili
