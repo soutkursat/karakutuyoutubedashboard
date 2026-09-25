@@ -23,7 +23,7 @@ export function Background() {
               <stop offset="1" className="yt-s5" />
             </linearGradient>
             <filter id="yt-blur" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="18" />
+              <feGaussianBlur stdDeviation="44" />
             </filter>
           </defs>
           {/* yumuşak hale */}

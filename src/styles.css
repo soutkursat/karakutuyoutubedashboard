@@ -794,22 +794,36 @@ button.sidebar-user:hover, .umenu.open button.sidebar-user { background: rgba(25
 .bg-edge { top: 8%; bottom: 8%; width: 1px; opacity: 0.8; }
 .bg-edge-l { left: 0; background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.55) 35%, rgba(var(--accent2-rgb), 0.35) 70%, transparent); box-shadow: 0 0 18px 2px rgba(var(--accent-rgb), 0.35); }
 .bg-edge-r { right: 0; background: linear-gradient(180deg, transparent, rgba(var(--accent2-rgb), 0.3) 30%, rgba(var(--accent-rgb), 0.5) 65%, transparent); box-shadow: 0 0 18px 2px rgba(var(--accent-rgb), 0.3); }
-/* büyük YouTube logosu — en arkada, düşük opaklık */
+/* YouTube logosu — en arkada. Keskin çizgiler çok soluk (okunurluk), etrafındaki yumuşak ışık güçlü. */
 .bg-logo {
-  top: 60%; left: calc(50% + 140px); /* masaüstünde menü genişliğinin yarısı kadar sağa: içerik alanının ortası */
-  width: min(62vw, 880px); transform: translate(-50%, -50%);
-  opacity: 0.4; animation: yt-breathe 9s ease-in-out infinite;
+  top: 62%; left: calc(50% + 140px); /* masaüstünde içerik alanının ortası */
+  width: min(34vw, 460px); transform: translate(-50%, -50%);
+  opacity: var(--logo-k, 1);
 }
-.bg-logo svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 0 40px rgba(var(--accent-rgb), 0.25)); }
-.yt-s1 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.13; }
-.yt-s2 { stop-color: rgb(var(--accent2-rgb)); stop-opacity: 0.04; }
-.yt-s3 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.42; }
-.yt-s4 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.12; }
-.yt-s5 { stop-color: rgb(var(--accent2-rgb)); stop-opacity: 0.3; }
-.yt-halo { fill: rgba(var(--accent-rgb), 0.22); }
-.yt-play { fill: rgba(var(--accent-rgb), 0.14); stroke: rgba(var(--accent-rgb), 0.3); stroke-width: 1.2; }
-@keyframes yt-breathe { 0%, 100% { opacity: 0.32; } 50% { opacity: 0.46; } }
+/* logonun arkasından yayılan geniş ışık */
+.bg-logo::before {
+  content: ''; position: absolute; inset: -70% -60%; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(var(--accent-rgb), 0.1), rgba(var(--accent2-rgb), 0.04) 55%, transparent);
+  animation: yt-breathe 9s ease-in-out infinite;
+}
+.bg-logo svg {
+  display: block; width: 100%; height: auto; overflow: visible;
+  filter: drop-shadow(0 0 70px rgba(var(--accent-rgb), 0.16));
+  animation: yt-breathe 9s ease-in-out infinite;
+}
+.yt-s1 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.07; }
+.yt-s2 { stop-color: rgb(var(--accent2-rgb)); stop-opacity: 0.02; }
+.yt-s3 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.2; }
+.yt-s4 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.05; }
+.yt-s5 { stop-color: rgb(var(--accent2-rgb)); stop-opacity: 0.14; }
+.yt-halo { fill: rgba(var(--accent-rgb), 0.12); }
+.yt-play { fill: rgba(var(--accent-rgb), 0.07); stroke: rgba(var(--accent-rgb), 0.14); stroke-width: 1.2; }
+@keyframes yt-breathe { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+/* tema başına logo gücü: beyaz tema doğal olarak daha parlak göründüğü için daha soluk */
+:root { --logo-k: 0.9; }
+:root[data-theme='blue'] { --logo-k: 0.9; }
+:root[data-theme='mono'] { --logo-k: 0.55; }
 @media (max-width: 900px) {
-  .bg-logo { left: 50%; top: 58%; width: 92vw; }
+  .bg-logo { left: 50%; top: 64%; width: 62vw; }
   .bg-side { width: 60vw; }
 }
