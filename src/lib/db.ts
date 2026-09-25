@@ -127,6 +127,8 @@ interface ChannelRow {
   niche?: string | null
   content_format?: ContentFormat | null
   challenge?: string | null
+  upload_note?: string | null
+  competitor_urls?: string[] | null
   created_at: string
 }
 const toChannel = (r: ChannelRow): Channel => ({
@@ -140,6 +142,8 @@ const toChannel = (r: ChannelRow): Channel => ({
   niche: r.niche ?? '',
   contentFormat: r.content_format ?? null,
   challenge: r.challenge ?? '',
+  uploadNote: r.upload_note ?? '',
+  competitorUrls: r.competitor_urls ?? [],
   createdAt: r.created_at,
 })
 
@@ -469,6 +473,8 @@ export interface ChannelDetails {
   niche: string
   contentFormat: ContentFormat | null
   challenge: string
+  uploadNote: string
+  competitorUrls: string[]
 }
 
 function validateDetails(d: ChannelDetails) {
@@ -479,12 +485,21 @@ function validateDetails(d: ChannelDetails) {
     if (!Number.isInteger(videoCount) || videoCount < 0 || videoCount > 100000) throw new AppError('Video sayısı 0 ile 100.000 arasında bir tam sayı olmalı.')
   }
   const format = d.contentFormat && ['long', 'shorts', 'both'].includes(d.contentFormat) ? d.contentFormat : null
+  const competitors: string[] = []
+  for (const raw of d.competitorUrls.map((x) => x.trim()).filter(Boolean)) {
+    const u = normalizeChannelUrl(raw)
+    if (!u) throw new AppError(`Rakip kanal linki geçersiz: ${raw.slice(0, 40)}`)
+    if (!competitors.some((c) => c.toLowerCase() === u.toLowerCase())) competitors.push(u)
+  }
+  if (competitors.length > 3) throw new AppError('En fazla 3 rakip kanal ekleyebilirsin.')
   return {
     upload_days: days,
     video_count: videoCount,
     niche: clean(d.niche, 120) || null,
     content_format: format,
     challenge: d.challenge.trim().slice(0, 600) || null,
+    upload_note: clean(d.uploadNote, 80) || null,
+    competitor_urls: competitors,
   }
 }
 

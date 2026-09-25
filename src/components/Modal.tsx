@@ -16,22 +16,29 @@ interface Props {
 
 export function Modal({ open, onClose, title, children, footer, size = 'md', dismissible = true }: Props) {
   const panel = useRef<HTMLDivElement>(null)
+  // onClose sayfalarda her çizimde yeniden oluşturulur; referansta tutuyoruz ki aşağıdaki efekt
+  // yalnızca pencere AÇILIRKEN çalışsın. (Aksi halde her tuş vuruşunda odak yazı kutusundan kaçıyordu.)
+  const closeRef = useRef(onClose)
+  const dismissRef = useRef(dismissible)
+  closeRef.current = onClose
+  dismissRef.current = dismissible
 
   useEffect(() => {
     if (!open) return
     const prev = document.activeElement as HTMLElement | null
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dismissible) onClose()
+      if (e.key === 'Escape' && dismissRef.current) closeRef.current()
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    panel.current?.focus()
+    // autoFocus'lu bir alan zaten odak aldıysa ona dokunma
+    if (!panel.current?.contains(document.activeElement)) panel.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
       prev?.focus?.()
     }
-  }, [open, dismissible, onClose])
+  }, [open])
 
   if (!open) return null
   return createPortal(

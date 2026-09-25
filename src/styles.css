@@ -767,3 +767,49 @@ button.sidebar-user:hover, .umenu.open button.sidebar-user { background: rgba(25
   .day-pick { gap: 4px; }
   .day-pick .chip { font-size: 12.5px; }
 }
+.rival-list { display: flex; flex-direction: column; gap: 8px; }
+.rival-row { display: flex; align-items: center; gap: 8px; }
+.rival-row .input { flex: 1; min-width: 0; }
+.rival-add { align-self: flex-start; }
+.cd-rivals .chips { margin-top: 6px; }
+.cd-rivals .chip { height: 30px; font-size: 13px; }
+
+/* ---------- arka plan: kenar ışıkları + YouTube logosu (tema renkli) ---------- */
+.bg-fx > * { position: absolute; pointer-events: none; }
+/* kenarlardan içeri süzülen ışık */
+.bg-side { top: 0; bottom: 0; width: min(34vw, 520px); }
+.bg-side-l {
+  left: 0;
+  background:
+    radial-gradient(60% 45% at 0% 30%, rgba(var(--accent-rgb), 0.16), transparent 70%),
+    radial-gradient(50% 35% at 0% 85%, rgba(var(--accent2-rgb), 0.08), transparent 70%);
+}
+.bg-side-r {
+  right: 0;
+  background:
+    radial-gradient(60% 45% at 100% 62%, rgba(var(--accent-rgb), 0.13), transparent 70%),
+    radial-gradient(45% 30% at 100% 12%, rgba(var(--accent2-rgb), 0.08), transparent 70%);
+}
+/* kenarlarda ince parlayan hat */
+.bg-edge { top: 8%; bottom: 8%; width: 1px; opacity: 0.8; }
+.bg-edge-l { left: 0; background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.55) 35%, rgba(var(--accent2-rgb), 0.35) 70%, transparent); box-shadow: 0 0 18px 2px rgba(var(--accent-rgb), 0.35); }
+.bg-edge-r { right: 0; background: linear-gradient(180deg, transparent, rgba(var(--accent2-rgb), 0.3) 30%, rgba(var(--accent-rgb), 0.5) 65%, transparent); box-shadow: 0 0 18px 2px rgba(var(--accent-rgb), 0.3); }
+/* büyük YouTube logosu — en arkada, düşük opaklık */
+.bg-logo {
+  top: 60%; left: calc(50% + 140px); /* masaüstünde menü genişliğinin yarısı kadar sağa: içerik alanının ortası */
+  width: min(62vw, 880px); transform: translate(-50%, -50%);
+  opacity: 0.4; animation: yt-breathe 9s ease-in-out infinite;
+}
+.bg-logo svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 0 40px rgba(var(--accent-rgb), 0.25)); }
+.yt-s1 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.13; }
+.yt-s2 { stop-color: rgb(var(--accent2-rgb)); stop-opacity: 0.04; }
+.yt-s3 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.42; }
+.yt-s4 { stop-color: rgb(var(--accent-rgb)); stop-opacity: 0.12; }
+.yt-s5 { stop-color: rgb(var(--accent2-rgb)); stop-opacity: 0.3; }
+.yt-halo { fill: rgba(var(--accent-rgb), 0.22); }
+.yt-play { fill: rgba(var(--accent-rgb), 0.14); stroke: rgba(var(--accent-rgb), 0.3); stroke-width: 1.2; }
+@keyframes yt-breathe { 0%, 100% { opacity: 0.32; } 50% { opacity: 0.46; } }
+@media (max-width: 900px) {
+  .bg-logo { left: 50%; top: 58%; width: 92vw; }
+  .bg-side { width: 60vw; }
+}

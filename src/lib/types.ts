@@ -85,6 +85,10 @@ export interface Channel {
   niche: string
   contentFormat: ContentFormat | null
   challenge: string
+  /** Belirli günlerde değilse serbest sıklık: "haftada 4", "2 günde 1" */
+  uploadNote: string
+  /** Rakip / örnek alınan kanallar (en fazla 3) */
+  competitorUrls: string[]
   createdAt: string
 }
 

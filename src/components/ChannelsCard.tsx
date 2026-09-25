@@ -11,7 +11,7 @@ import { cx, errMsg } from '../lib/ui'
 import { channelLabel } from '../lib/validation'
 
 const EMPTY: ChannelInput = { url: '', monetized: false, startedOn: '' }
-const EMPTY_DETAILS: ChannelDetails = { uploadDays: [], videoCount: '', niche: '', contentFormat: null, challenge: '' }
+const EMPTY_DETAILS: ChannelDetails = { uploadDays: [], videoCount: '', niche: '', contentFormat: null, challenge: '', uploadNote: '', competitorUrls: [''] }
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0] // Pazartesi'den başla
 export const FORMAT_LABEL: Record<ContentFormat, string> = { long: 'Uzun video', shorts: 'Shorts', both: 'Uzun + Shorts' }
 const fmtNum = (n: number) => new Intl.NumberFormat('tr-TR').format(n)
@@ -21,7 +21,9 @@ const daysText = (d: number[]) => (d.length === 7 ? 'Her gün' : d.map((x) => WE
  *  expandable: yönetici tıklayınca kanalın tüm detayları açılır. */
 export function ChannelRow({ c, actions, expandable = false }: { c: Channel; actions?: ReactNode; expandable?: boolean }) {
   const [open, setOpen] = useState(false)
-  const hasDetails = c.uploadDays.length > 0 || c.videoCount != null || !!c.niche || !!c.contentFormat || !!c.challenge
+  const hasDetails =
+    c.uploadDays.length > 0 || c.videoCount != null || !!c.niche || !!c.contentFormat || !!c.challenge || !!c.uploadNote || c.competitorUrls.length > 0
+  const uploadText = [c.uploadDays.length ? daysText(c.uploadDays) : '', c.uploadNote].filter(Boolean).join(' · ')
   const summary = (
     <>
       <span className="channel-ic"><IconVideo size={18} /></span>
@@ -65,12 +67,22 @@ export function ChannelRow({ c, actions, expandable = false }: { c: Channel; act
         <div className="channel-detail">
           {hasDetails ? (
             <div className="cd-grid">
-              <div><span>Yükleme günleri</span><strong>{c.uploadDays.length ? daysText(c.uploadDays) : '—'}</strong></div>
+              <div><span>Yükleme</span><strong>{uploadText || '—'}</strong></div>
               <div><span>Toplam video</span><strong>{c.videoCount != null ? fmtNum(c.videoCount) : '—'}</strong></div>
               <div><span>İçerik türü</span><strong>{c.contentFormat ? FORMAT_LABEL[c.contentFormat] : '—'}</strong></div>
               <div><span>Konu / niş</span><strong>{c.niche || '—'}</strong></div>
               {c.challenge && (
                 <div className="cd-wide"><span>En çok zorlandığı konu</span><p>{c.challenge}</p></div>
+              )}
+              {c.competitorUrls.length > 0 && (
+                <div className="cd-wide cd-rivals">
+                  <span>Rakip / örnek aldığı kanallar</span>
+                  <div className="chips">
+                    {c.competitorUrls.map((u) => (
+                      <a key={u} className="chip" href={u} target="_blank" rel="noopener noreferrer">{channelLabel(u)}</a>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           ) : (
@@ -100,7 +112,15 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
     setDet(
       c === 'new'
         ? EMPTY_DETAILS
-        : { uploadDays: c.uploadDays, videoCount: c.videoCount != null ? String(c.videoCount) : '', niche: c.niche, contentFormat: c.contentFormat, challenge: c.challenge },
+        : {
+            uploadDays: c.uploadDays,
+            videoCount: c.videoCount != null ? String(c.videoCount) : '',
+            niche: c.niche,
+            contentFormat: c.contentFormat,
+            challenge: c.challenge,
+            uploadNote: c.uploadNote,
+            competitorUrls: c.competitorUrls.length ? c.competitorUrls : [''],
+          },
     )
   }
 
@@ -225,6 +245,9 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
                 })}
               </div>
             </Field>
+            <Field label="Belirli günlerde yüklemiyorsan sıklığını yaz" hint="Kısaca yazman yeterli: ör. haftada 4, 2 günde 1, ayda 6">
+              <input className="input" maxLength={80} value={det.uploadNote} onChange={(e) => setDet({ ...det, uploadNote: e.target.value })} placeholder="Ör. haftada 4" />
+            </Field>
             <div className="grid-2">
               <Field label="Toplam video sayısı">
                 <input className="input" inputMode="numeric" value={det.videoCount} onChange={(e) => setDet({ ...det, videoCount: e.target.value.replace(/[^0-9.]/g, '') })} placeholder="Ör. 48" />
@@ -258,6 +281,36 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
                 onChange={(e) => setDet({ ...det, challenge: e.target.value })}
                 placeholder="Ör. izlenmeler düşük, thumbnail, fikir bulma, düzenli yükleme…"
               />
+            </Field>
+            <Field label="Rakip / örnek aldığın kanallar" hint="En fazla 3 kanal. Aynı nişte başarılı bulduğun kanalların linki.">
+              <div className="rival-list">
+                {det.competitorUrls.map((u, i) => (
+                  <div key={i} className="rival-row">
+                    <input
+                      className="input"
+                      inputMode="url"
+                      value={u}
+                      onChange={(e) => setDet({ ...det, competitorUrls: det.competitorUrls.map((x, j) => (j === i ? e.target.value : x)) })}
+                      placeholder="https://www.youtube.com/@rakipkanal"
+                    />
+                    {det.competitorUrls.length > 1 && (
+                      <button
+                        type="button"
+                        className="icon-btn danger"
+                        aria-label="Rakip kanalı kaldır"
+                        onClick={() => setDet({ ...det, competitorUrls: det.competitorUrls.filter((_, j) => j !== i) })}
+                      >
+                        <IconTrash size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {det.competitorUrls.length < 3 && (
+                  <button type="button" className="btn btn-text btn-sm rival-add" onClick={() => setDet({ ...det, competitorUrls: [...det.competitorUrls, ''] })}>
+                    <IconPlus size={16} /> Rakip kanal ekle
+                  </button>
+                )}
+              </div>
             </Field>
           </div>
         </div>

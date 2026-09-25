@@ -16,6 +16,7 @@ import { AdminSettings } from './pages/admin/AdminSettings'
 import { currentUser, getAppointments, isReady } from './lib/db'
 import { isConfigured } from './lib/supabase'
 import { Loader, SetupScreen } from './components/Screens'
+import { Background } from './components/Background'
 import { useDataVersion } from './lib/hooks'
 
 function RootRedirect() {
@@ -31,7 +32,7 @@ export function App() {
   if (!isConfigured) {
     return (
       <>
-        <div className="bg-fx" aria-hidden />
+        <Background />
         <SetupScreen />
       </>
     )
@@ -39,7 +40,7 @@ export function App() {
 
   return (
     <ToastProvider>
-      <div className="bg-fx" aria-hidden />
+      <Background />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<RootRedirect />} />

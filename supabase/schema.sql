@@ -58,6 +58,21 @@ do $$ begin
   );
 exception when duplicate_object then null;
 end $$;
+-- v0.7: rakip kanallar (en fazla 3) ve serbest yükleme sıklığı notu ("haftada 4" gibi)
+alter table public.student_channels add column if not exists competitor_urls text[] not null default '{}';
+alter table public.student_channels add column if not exists upload_note text;
+create or replace function public._valid_urls(p text[]) returns boolean
+language sql immutable as $$
+  select coalesce(bool_and(char_length(u) between 10 and 300 and u ~* '^https?://'), true) from unnest(p) u
+$$;
+do $$ begin
+  alter table public.student_channels add constraint student_channels_details2_check check (
+    cardinality(competitor_urls) <= 3
+    and public._valid_urls(competitor_urls)
+    and (upload_note is null or char_length(upload_note) <= 80)
+  );
+exception when duplicate_object then null;
+end $$;
 
 -- Tek satırlık ayar tablosu (öğrenciler okuyabilir)
 create table if not exists public.app_settings (

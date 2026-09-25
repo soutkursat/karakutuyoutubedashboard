@@ -69,11 +69,13 @@ npm run dev                  # http://localhost:5173
 **Öğrenci takibi** (Profilim sayfası — sadece öğrencinin kendisi ve yönetici görür)
 - Mentörlükte kullanılan WhatsApp numarası, Skool topluluğunda mı işareti
 - YouTube kanalları (birden fazla): link, para kazanma açık/kapalı, kanalın açıldığı / aktif içerik üretilmeye başlanan tarih
-- İsteğe bağlı kanal detayları: yükleme günleri, toplam video, konu/niş, içerik türü (uzun/Shorts), en çok zorlanılan konu
+- İsteğe bağlı kanal detayları: yükleme günleri veya sıklık notu ("haftada 4"), toplam video, konu/niş, içerik türü (uzun/Shorts),
+  en çok zorlanılan konu, en fazla 3 rakip / örnek kanal
   (yönetici: Öğrenciler → öğrenciye tıkla → kanala tıkla)
 - Yönetici: Öğrenciler sayfasında filtreler (Skool'da, para kazanan, kanalı yok), satıra tıklayınca detay penceresi
 
 **Görünüm**
+- Tema renkli arka plan: kenar ışıkları + parlayan YouTube logosu
 - Temalar: Kırmızı (varsayılan), Mavi, Beyaz — sadece renkler değişir; Profilim sayfasından veya sol alttaki kullanıcı menüsünden
 - Sol alttaki kullanıcı kartına tıklayınca: Profili düzenle · Tema · Çıkış yap
 

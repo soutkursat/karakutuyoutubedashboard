@@ -35,12 +35,16 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
   İstemci `kickSync()` ile tetikler; randevu durumunu değiştiren her yeni işlemden sonra `kickSync(true)` çağır.
 - `api/` altında göreli importlar `.js` uzantısıyla yazılır (`./_lib/server.js`), yoksa Vercel'de çalışmaz.
 - Arayüz metinleri Türkçe.
+- **Odak kaybı tuzağı:** `useEffect` bağımlılıklarına satır içi fonksiyon (ör. `onClose`) koyma; her çizimde değişir,
+  efekt yeniden çalışır ve odağı yazı kutusundan çalar (her harften sonra yazma kesilir). Referansta tut (`Modal.tsx`).
+  Form testlerinde `fill` değil gerçek tuş vuruşu (`keyboard.type`) kullan.
 
 ## Tasarım dili
 Siyah zemin, kırmızı→turuncu gradyan vurgu, ince grid dokusu, cam (glass) kartlar.
 **Temalar (kırmızı/mavi/beyaz):** vurgu rengini ASLA sabit yazma; `var(--accent-rgb)`, `var(--grad-btn)`, `var(--accent-text)`,
 `var(--on-accent)` (vurgu zemini üstündeki yazı) kullan. Silme/iptal/hata için `--danger-*` (her temada kırmızı).
 Tema sadece renkleri değiştirir; ölçü/yerleşim temaya göre değişmemeli.
+Arka plan (`components/Background.tsx`: kenar ışıkları + YouTube logosu) okunurluğu bozmayacak kadar düşük opaklıkta kalmalı.
 Yeni ekran eklerken mevcut sınıfları kullan: `card glass`, `glow`, `btn btn-primary|btn-ghost|btn-wa|btn-text`,
 `field`, `input`, `chip`, `badge`, `notice`, `seg`, `PageHeader`, `Empty`, `Modal`, `useToast`.
 Mobil (390px) görünümü her değişiklikte kontrol et.
