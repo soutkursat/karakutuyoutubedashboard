@@ -827,3 +827,5 @@ button.sidebar-user:hover, .umenu.open button.sidebar-user { background: rgba(25
   .bg-logo { left: 50%; top: 64%; width: 62vw; }
   .bg-side { width: 60vw; }
 }
+.week-copy { margin-left: auto; width: 32px; height: 32px; }
+.copy-quick { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }

@@ -4,6 +4,11 @@ Kara Kutu YouTube Akademisi öğrencileri için randevu sistemi.
 Öğrenci giriş yapar → müsait saati seçer → randevu oluşur → açılan pop-up'tan **tek tuşla WhatsApp'a**
 (+90 537 793 50 90) hazır mesaj olarak bildirir. Sen de randevuları hem WhatsApp'ta hem de yönetim panelinde görürsün.
 
+## Altyapı
+
+- Canlı adres: https://dashboard.karakutuyoutube.com — DNS Vercel'e yönlü; site ve sunucu fonksiyonları **Vercel**'de.
+- Veritabanı ve giriş: **Supabase**. Natro sadece alan adı/DNS için; Natro hosting bu projede kullanılmıyor.
+
 ## Kurulum (Supabase + Vercel)
 
 ### 1) Supabase
@@ -30,8 +35,8 @@ Import ekranında: Preset **Vite**, Root **./**, Build ayarları varsayılan. **
 Deploy'dan sonra değişken eklersen/değiştirirsen **Redeploy** gerekir.
 
 ### 3) Google Takvim + otomatik Meet (isteğe bağlı ama önerilir)
-Bağlanınca: Google Takviminde dolu olduğun saatler öğrencilere otomatik kapanır, her randevu takvimine
-**otomatik Google Meet linkiyle** eklenir, onayladığında öğrenciye Google davet e-postası gider, iptalde etkinlik silinir.
+Bağlanınca: her randevu takvimine **otomatik Google Meet linkiyle** eklenir, onayladığında öğrenciye Google davet
+e-postası gider, iptalde etkinlik silinir. Müsaitlik Google'dan okunmaz; Müsaitlik sayfasındaki haftalık programdan gelir.
 
 1. [console.cloud.google.com](https://console.cloud.google.com) → yeni proje oluştur (ör. "Kara Kutu Panel").
 2. **APIs & Services → Library** → **Google Calendar API** → **Enable**.

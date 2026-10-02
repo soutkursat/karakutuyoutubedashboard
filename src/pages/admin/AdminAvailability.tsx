@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Field, PageHeader, Switch } from '../../components/Common'
 import { GoogleCalendarCard } from '../../components/GoogleCalendarCard'
-import { IconPlus, IconTrash } from '../../components/Icons'
+import { IconCopy, IconPlus, IconTrash } from '../../components/Icons'
+import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
 import { getSettings, saveSettings } from '../../lib/db'
-import { WEEKDAYS, dateKey, formatKeyLong, toMinutes } from '../../lib/time'
+import { WEEKDAYS, WEEKDAYS_SHORT, dateKey, formatKeyLong, toMinutes } from '../../lib/time'
 import type { Settings } from '../../lib/types'
-import { errMsg } from '../../lib/ui'
+import { cx, errMsg } from '../../lib/ui'
 
 const ORDER = [1, 2, 3, 4, 5, 6, 0] // Pazartesi ile başla
 
@@ -15,6 +16,9 @@ export function AdminAvailability() {
   const [s, setS] = useState<Settings>(() => structuredClone(getSettings()))
   const [newDate, setNewDate] = useState('')
   const [dirty, setDirty] = useState(false)
+  // Gün kopyalama penceresi
+  const [copyFrom, setCopyFrom] = useState<number | null>(null)
+  const [targets, setTargets] = useState<number[]>([])
   const today = dateKey()
 
   const update = (fn: (d: Settings) => void) => {
@@ -56,7 +60,7 @@ export function AdminAvailability() {
       <PageHeader
         eyebrow="Yönetim"
         title="Müsaitlik"
-        desc="Haftalık çalışma saatlerini belirle; sistem bu aralıkları randevu slotlarına böler. Google Takvimindeki dolu saatler ayrıca otomatik kapanır."
+        desc="Haftalık çalışma saatlerini belirle; sistem bu aralıkları randevu slotlarına böler. Bir günün saatlerini kopyala butonuyla diğer günlere aktarabilirsin."
         actions={
           <button className="btn btn-primary" onClick={save} disabled={!dirty || saving}>
             {saving ? 'Kaydediliyor…' : dirty ? 'Değişiklikleri kaydet' : 'Kaydedildi'}
@@ -83,6 +87,20 @@ export function AdminAvailability() {
                       onChange={(v) => update((x) => (x.weekly[d] = v ? [{ start: '10:00', end: '17:00' }] : []))}
                     />
                     <strong>{WEEKDAYS[d]}</strong>
+                    {on && (
+                      <button
+                        type="button"
+                        className="icon-btn week-copy"
+                        title="Bu günün saatlerini başka günlere kopyala"
+                        aria-label={`${WEEKDAYS[d]} saatlerini kopyala`}
+                        onClick={() => {
+                          setCopyFrom(d)
+                          setTargets([])
+                        }}
+                      >
+                        <IconCopy size={16} />
+                      </button>
+                    )}
                   </div>
                   <div className="week-ranges">
                     {!on && <span className="muted">Kapalı</span>}
@@ -203,6 +221,61 @@ export function AdminAvailability() {
           </section>
         </div>
       </div>
+
+      <Modal
+        open={copyFrom !== null}
+        onClose={() => setCopyFrom(null)}
+        size="sm"
+        title={copyFrom !== null ? `${WEEKDAYS[copyFrom]} saatlerini kopyala` : ''}
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setCopyFrom(null)}>Vazgeç</button>
+            <button
+              className="btn btn-primary"
+              disabled={!targets.length}
+              onClick={() => {
+                if (copyFrom === null) return
+                const src = s.weekly[copyFrom] ?? []
+                update((x) => targets.forEach((t) => (x.weekly[t] = structuredClone(src))))
+                toast(`${targets.length} güne kopyalandı. Kaydetmeyi unutma.`)
+                setCopyFrom(null)
+              }}
+            >
+              Kopyala
+            </button>
+          </>
+        }
+      >
+        {copyFrom !== null && (
+          <>
+            <p className="muted small-text">
+              {(s.weekly[copyFrom] ?? []).map((r) => `${r.start}–${r.end}`).join(', ')} aralıkları seçtiğin günlere aynen uygulanır;
+              o günlerdeki mevcut saatlerin yerini alır.
+            </p>
+            <div className="day-pick">
+              {ORDER.filter((d) => d !== copyFrom).map((d) => {
+                const on = targets.includes(d)
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={on}
+                    className={cx('chip', on && 'active')}
+                    onClick={() => setTargets(on ? targets.filter((x) => x !== d) : [...targets, d])}
+                  >
+                    {WEEKDAYS_SHORT[d]}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="copy-quick">
+              <button type="button" className="btn btn-text btn-sm" onClick={() => setTargets([1, 2, 3, 4, 5].filter((d) => d !== copyFrom))}>Hafta içi</button>
+              <button type="button" className="btn btn-text btn-sm" onClick={() => setTargets(ORDER.filter((d) => d !== copyFrom))}>Tüm günler</button>
+              <button type="button" className="btn btn-text btn-sm" onClick={() => setTargets([])}>Temizle</button>
+            </div>
+          </>
+        )}
+      </Modal>
     </>
   )
 }

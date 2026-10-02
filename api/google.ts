@@ -2,7 +2,7 @@
  * POST /api/google  { action: 'status' | 'connect' | 'disconnect' | 'sync', force?: boolean }
  * status/connect/disconnect → sadece yönetici · sync → giriş yapmış herkes (sık çağrı kısıtlı)
  */
-import { GOOGLE_SCOPES, getIntegration, googleEnv, redirectUri, revoke, sync } from './_lib/google.js'
+import { GOOGLE_SCOPES, dbSetupMessage, getIntegration, googleEnv, redirectUri, revoke, sync } from './_lib/google.js'
 import { HttpError, handle, json, requireUser } from './_lib/server.js'
 
 export function POST(request: Request): Promise<Response> {
@@ -37,7 +37,7 @@ export function POST(request: Request): Promise<Response> {
         // Eski (15 dk'dan eski) anahtarları temizle, yenisini kaydet
         await sb.from('oauth_states').delete().lt('created_at', new Date(Date.now() - 15 * 60_000).toISOString())
         const { error } = await sb.from('oauth_states').insert({ state, user_id: userId })
-        if (error) throw new HttpError(500, 'Veritabanı güncel değil: supabase/schema.sql dosyasını tekrar çalıştır.')
+        if (error) throw new HttpError(500, dbSetupMessage(error, 'oauth_states'))
         const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
         url.search = new URLSearchParams({
           client_id: env.clientId!,

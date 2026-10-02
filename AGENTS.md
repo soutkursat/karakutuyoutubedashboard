@@ -31,13 +31,22 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
 - Menü sayısını artırma: yeni özellikleri mevcut sayfalara kart/pencere olarak ekle (kullanıcı isteği).
 - WhatsApp mesaj şablonları `src/lib/whatsapp.ts` içinde. **Mesajlarda emoji kullanma** (WhatsApp Masaüstü/Web
   wa.me linkiyle gelen emojileri "�" olarak gösteriyor); sadece düz metin + `*kalın*`.
-- Google Takvim senkronu `api/_lib/google.ts` içinde (randevu → etkinlik + Meet, takvim → `external_busy`).
+- Google Takvim senkronu `api/_lib/google.ts` içinde (randevu → etkinlik + Meet linki; takvimden dolu saat okunmaz).
   İstemci `kickSync()` ile tetikler; randevu durumunu değiştiren her yeni işlemden sonra `kickSync(true)` çağır.
 - `api/` altında göreli importlar `.js` uzantısıyla yazılır (`./_lib/server.js`), yoksa Vercel'de çalışmaz.
 - Arayüz metinleri Türkçe.
 - **Odak kaybı tuzağı:** `useEffect` bağımlılıklarına satır içi fonksiyon (ör. `onClose`) koyma; her çizimde değişir,
   efekt yeniden çalışır ve odağı yazı kutusundan çalar (her harften sonra yazma kesilir). Referansta tut (`Modal.tsx`).
   Form testlerinde `fill` değil gerçek tuş vuruşu (`keyboard.type`) kullan.
+
+## Altyapı (değiştirmeden önce oku)
+- Canlı adres: https://dashboard.karakutuyoutube.com → DNS **Vercel**'e yönlü (CNAME). Site ve `api/` fonksiyonları Vercel'de çalışır.
+- Veritabanı + giriş: **Supabase** (Postgres). Natro'daki paylaşımlı hosting (PHP/MySQL, 1 GB RAM) bu projede
+  KULLANILMIYOR; Natro sadece alan adını/DNS'i yönetir. PHP, MySQL ya da sunucuda sürekli çalışan Node süreci gerektiren
+  bir şey yazma. Sunucu işi gerekiyorsa `api/` altında kısa süren Vercel fonksiyonu ya da Supabase SQL fonksiyonu kullan.
+- Ücretsiz plan sınırları: Vercel fonksiyonları kısa sürmeli (≈10 sn), arka planda zamanlanmış iş yok; Supabase ücretsiz
+  planı 500 MB veritabanı. Ağır/sürekli işler ekleme.
+- Google: sadece randevu → takvim etkinliği + otomatik Meet linki. Müsaitlik Google'dan OKUNMAZ (kullanıcı tercihi).
 
 ## Tasarım dili
 Siyah zemin, kırmızı→turuncu gradyan vurgu, ince grid dokusu, cam (glass) kartlar.

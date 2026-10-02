@@ -7,7 +7,7 @@ import { useDataVersion, useNow } from '../lib/hooks'
 import { relativeFromNow } from '../lib/time'
 import { errMsg } from '../lib/ui'
 
-/** Yönetici: Google Takvim bağlantısı (dolu saatleri oku + randevuları Meet linkiyle takvime ekle) */
+/** Yönetici: Google Takvim bağlantısı (randevuları otomatik Meet linkiyle takvime ekler; müsaitlik okunmaz) */
 export function GoogleCalendarCard() {
   useDataVersion()
   const now = useNow(30_000)
@@ -74,8 +74,8 @@ export function GoogleCalendarCard() {
       {g?.configured && !g.connected && (
         <>
           <ul className="gcal-list">
-            <li><IconCalendar size={16} /><span>Google Takviminde dolu olduğun saatler öğrencilere otomatik kapanır.</span></li>
-            <li><IconVideo size={16} /><span>Her randevu takvimine <strong>otomatik Google Meet linkiyle</strong> eklenir.</span></li>
+            <li><IconVideo size={16} /><span>Her randevuya <strong>otomatik Google Meet linki</strong> oluşturulur.</span></li>
+            <li><IconCalendar size={16} /><span>Randevular Google Takvimine de eklenir; müsaitliğin yine bu sayfadaki programdan gelir.</span></li>
             <li><IconCheck size={16} /><span>Randevuyu onaylayınca öğrenciye Google davet e-postası gider.</span></li>
           </ul>
           {g.lastError && <div className="notice notice-warn">{g.lastError}</div>}
@@ -98,8 +98,8 @@ export function GoogleCalendarCard() {
           </div>
           {g.lastError && <div className="notice notice-warn">{g.lastError}</div>}
           <p className="muted small-text">
-            Takvimindeki etkinlikler (toplantı, özel iş, tatil) randevu saatlerini otomatik kapatır. “Müsait” olarak işaretli
-            etkinlikler engellemez. Senkron her dakika kendiliğinden yenilenir.
+            Her randevu otomatik Meet linkiyle takvimine eklenir; onayladığında öğrenciye Google davet e-postası gider.
+            Müsaitliğin bu sayfadaki programdan gelir, takvimindeki diğer etkinlikler randevu saatlerini etkilemez.
           </p>
           <div className="gcal-actions">
             <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => run(googleSyncNow, 'Takvim senkronize edildi')}>

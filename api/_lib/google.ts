@@ -1,7 +1,7 @@
 /**
  * Google Takvim entegrasyonu (sunucu tarafı).
  * - Mentörün Google hesabı bir kez bağlanır (OAuth), refresh_token veritabanında saklanır.
- * - sync(): randevuları Google Takvime işler (Meet linkiyle) ve takvimdeki dolu saatleri okur.
+ * - sync(): randevuları Google Takvime işler (otomatik Meet linkiyle). Takvimdeki dolu saatler OKUNMAZ.
  * Harici kütüphane yok; Google REST API'si doğrudan fetch ile çağrılıyor.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -30,9 +30,21 @@ interface Integration {
   last_error: string | null
 }
 
+/** Veritabanı hatasını kurulum yapan kişiye anlaşılır, ama gerçek sebebi gizlemeyen bir mesaja çevirir. */
+export function dbSetupMessage(error: { message?: string; code?: string }, table: string): string {
+  const m = error.message ?? ''
+  if (error.code === '42P01' || error.code === 'PGRST205' || /does not exist|could not find the table/i.test(m)) {
+    return `Veritabanında "${table}" tablosu yok. Supabase → SQL Editor'de supabase/schema.sql dosyasının TAMAMINI yapıştırıp Run'a bas ve altta kırmızı hata çıkmadığından emin ol.`
+  }
+  if (error.code === '42501' || /permission denied/i.test(m)) {
+    return 'Sunucu anahtarı yetkisiz: Vercel’deki SUPABASE_SERVICE_ROLE_KEY değerinin "service_role" (secret) anahtar olduğundan emin ol, sonra Redeploy et.'
+  }
+  return `Veritabanı hatası (${error.code ?? '?'}): ${m}`
+}
+
 export async function getIntegration(sb: SupabaseClient): Promise<Integration> {
   const { data, error } = await sb.from('google_integration').select('*').eq('id', 1).maybeSingle()
-  if (error) throw new HttpError(500, 'Veritabanı güncel değil: supabase/schema.sql dosyasını tekrar çalıştır.')
+  if (error) throw new HttpError(500, dbSetupMessage(error, 'google_integration'))
   return (data ?? { email: null, refresh_token: null, connected_at: null, last_synced_at: null, last_error: null }) as Integration
 }
 
@@ -210,49 +222,19 @@ async function reconcileAppointments(sb: SupabaseClient, token: string): Promise
   return done
 }
 
-const allDay = (d: string) => new Date(`${d}T00:00:00+03:00`).toISOString()
-
-/** Google Takvimdeki (randevu sistemi dışı) dolu saatleri okuyup veritabanına yazar. */
-async function refreshBusy(sb: SupabaseClient, token: string) {
-  const { data: st } = await sb.from('app_settings').select('data').eq('id', 1).maybeSingle()
-  const days = Number((st?.data as { maxDaysAhead?: number } | undefined)?.maxDaysAhead ?? 21) + 2
-  const timeMin = new Date().toISOString()
-  const timeMax = new Date(Date.now() + days * 86400_000).toISOString()
-  const rows: { start: string; end: string }[] = []
-  let pageToken = ''
-  for (let page = 0; page < 5; page++) {
-    const q = new URLSearchParams({
-      timeMin,
-      timeMax,
-      singleEvents: 'true',
-      orderBy: 'startTime',
-      maxResults: '2500',
-      fields: 'nextPageToken,items(id,status,transparency,start,end,attendees(self,responseStatus),extendedProperties)',
-    })
-    if (pageToken) q.set('pageToken', pageToken)
-    const r = await gcal<{ items?: GEvent[]; nextPageToken?: string }>(token, `/calendars/primary/events?${q}`)
-    for (const e of r.data?.items ?? []) {
-      if (e.status === 'cancelled') continue
-      if (e.transparency === 'transparent') continue // "Müsait" olarak işaretli etkinlikler engellemez
-      if (e.extendedProperties?.private?.kkAppointmentId) continue // kendi randevularımız zaten sayılıyor
-      if (e.attendees?.some((x) => x.self && x.responseStatus === 'declined')) continue
-      const start = e.start?.dateTime ? new Date(e.start.dateTime).toISOString() : e.start?.date ? allDay(e.start.date) : null
-      const end = e.end?.dateTime ? new Date(e.end.dateTime).toISOString() : e.end?.date ? allDay(e.end.date) : null
-      if (start && end && end > start) rows.push({ start, end })
-    }
-    pageToken = r.data?.nextPageToken ?? ''
-    if (!pageToken) break
-  }
-  const { error } = await sb.rpc('replace_external_busy', { p_rows: rows })
+/**
+ * Müsaitlik SADECE paneldeki haftalık programdan gelir (kullanıcı tercihi).
+ * Google Takvimdeki diğer etkinlikler okunmaz; eski sürümden kalan kayıt varsa temizlenir.
+ */
+async function clearExternalBusy(sb: SupabaseClient) {
+  const { error } = await sb.rpc('replace_external_busy', { p_rows: [] })
   if (error) throw new Error(error.message)
-  return rows.length
 }
 
 export interface SyncResult {
   connected: boolean
   synced: boolean
   events?: number
-  busy?: number
   error?: string
 }
 
@@ -271,9 +253,9 @@ export async function sync(sb: SupabaseClient, force: boolean): Promise<SyncResu
   try {
     const token = await accessToken(sb, integ.refresh_token)
     const events = await reconcileAppointments(sb, token)
-    const busy = await refreshBusy(sb, token)
+    await clearExternalBusy(sb)
     await sb.from('google_integration').update({ last_synced_at: new Date().toISOString(), last_error: null, sync_lock_until: null }).eq('id', 1)
-    return { connected: true, synced: true, events, busy }
+    return { connected: true, synced: true, events }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Senkronizasyon hatası'
     await sb.from('google_integration').update({ last_error: msg, sync_lock_until: null }).eq('id', 1)
