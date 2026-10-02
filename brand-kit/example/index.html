@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#09090b" />
+  <title>Kara Kutu YouTube Akademisi</title>
+  <meta name="description" content="YouTube kanalını büyütmek için mentörlük ve yapay zekâ destekli araçlar: Mentörlük Paneli, ChannelPrompt, Thumbnail Studio." />
+  <!-- 1) theme first (no colour flash) -->
+  <script>try{var t=localStorage.getItem('kk.theme');if(t==='blue'||t==='mono')document.documentElement.dataset.theme=t}catch(e){}</script>
+  <!-- 2) fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <!-- 3) brand kit -->
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    /* page-specific layout only — colours always come from tokens */
+    .hero { padding: clamp(64px, 10vw, 128px) 0 clamp(48px, 7vw, 88px); }
+    .hero .display { margin: 20px 0 22px; max-width: 900px; }
+    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: s; }
+    .step { padding: 24px; border-radius: var(--r-xl); }
+    .step-n { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; background: var(--accent-soft); color: var(--accent-text); border: 1px solid rgba(var(--accent-rgb), .25); margin-bottom: 14px; }
+    .step h3 { font-size: 17px; font-weight: 800; margin-bottom: 6px; }
+    .cta { text-align: center; padding: clamp(36px, 6vw, 64px); border-radius: var(--r-xl); }
+    .cta .lead { margin: 12px auto 26px; }
+    .theme-row { display: flex; gap: 6px; }
+    .theme-row button { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.2) inset; }
+    .theme-row button[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 2px; }
+    @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+    @media (max-width: 480px) { .theme-row { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="bg-fx" aria-hidden="true">
+    <div class="bg-side bg-side-l"></div>
+    <div class="bg-side bg-side-r"></div>
+    <div class="bg-edge bg-edge-l"></div>
+    <div class="bg-edge bg-edge-r"></div>
+    <div class="bg-logo">
+      <svg viewBox="0 0 240 170" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="yt-fill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" class="yt-s1" /><stop offset="1" class="yt-s2" />
+          </linearGradient>
+          <linearGradient id="yt-stroke" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" class="yt-s3" /><stop offset="0.5" class="yt-s4" /><stop offset="1" class="yt-s5" />
+          </linearGradient>
+          <filter id="yt-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="44" /></filter>
+        </defs>
+        <rect class="yt-halo" x="14" y="14" width="212" height="142" rx="44" filter="url(#yt-blur)" />
+        <rect x="6" y="6" width="228" height="158" rx="46" fill="url(#yt-fill)" stroke="url(#yt-stroke)" stroke-width="1.5" />
+        <path class="yt-play" d="M98 52.5c0-3.2 3.5-5.2 6.3-3.6l52.4 30.3c2.8 1.6 2.8 5.6 0 7.2l-52.4 30.3c-2.8 1.6-6.3-.4-6.3-3.6z" />
+      </svg>
+    </div>
+  </div>
+
+  <header class="site-nav">
+    <div class="container">
+      <a class="brand" href="/">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg></span>
+        <span class="brand-text"><strong>Kara Kutu YouTube Akademisi</strong><span>Mentörlük &amp; araçlar</span></span>
+      </a>
+      <nav>
+        <a href="#araclar">Araçlar</a>
+        <a href="#nasil">Nasıl çalışır</a>
+        <div class="theme-row" aria-label="Tema">
+          <button data-set-theme="red" aria-label="Kırmızı tema" style="background:linear-gradient(135deg,#ff3a4f,#ff7a2f)"></button>
+          <button data-set-theme="blue" aria-label="Mavi tema" style="background:linear-gradient(135deg,#3a8bff,#2fd0ff)"></button>
+          <button data-set-theme="mono" aria-label="Beyaz tema" style="background:linear-gradient(135deg,#fff,#a1a1aa)"></button>
+        </div>
+        <a class="btn btn-primary btn-sm" href="https://dashboard.karakutuyoutube.com">Panele giriş</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <span class="chip-outline">KARA KUTU YOUTUBE AKADEMİSİ</span>
+        <h1 class="display">Kanalını büyütmek için<br /><span class="grad-text">tek merkez.</span></h1>
+        <p class="lead">Birebir mentörlük, başarılı kanalların formülünü çözen yapay zekâ araçları ve tıklatan thumbnail’ler. Hepsi tek çatı altında.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="#araclar">Araçları keşfet</a>
+          <a class="btn btn-ghost btn-lg" href="https://dashboard.karakutuyoutube.com">Mentörlük paneli</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="araclar" style="padding-top:0">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Araçlar</span>
+          <h2 class="h2">Her aşama için bir araç</h2>
+          <p class="muted">Her araç kendi adresinde çalışır; hepsi aynı tasarım dilini ve aynı hesabı paylaşır.</p>
+        </div>
+        <div class="grid-3">
+          <a class="product card glass glow" href="https://dashboard.karakutuyoutube.com">
+            <div class="product-top">
+              <span class="product-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M8 3v3M16 3v3M3 10h18"/></svg></span>
+              <span class="badge badge-live">Yayında</span>
+            </div>
+            <h3>Mentörlük Paneli</h3>
+            <p>Mentörün müsait saatlerinden randevu al, Google Meet linkin otomatik gelsin, kanal bilgilerini mentörünle paylaş.</p>
+            <span class="btn btn-primary btn-block">Panele git</span>
+          </a>
+          <a class="product card glass" href="#">
+            <div class="product-top">
+              <span class="product-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg></span>
+              <span class="badge badge-live">Yayında</span>
+            </div>
+            <h3>ChannelPrompt</h3>
+            <p>Başarılı bir kanalın en çok izlenen 5 videosunu gir; formülünü çözen, Claude Projesi’ne yapıştırılacak hazır promptu al.</p>
+            <span class="btn btn-ghost btn-block">Aracı aç</span>
+          </a>
+          <a class="product card glass" href="#">
+            <div class="product-top">
+              <span class="product-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg></span>
+              <span class="badge badge-soon">Yakında</span>
+            </div>
+            <h3>Thumbnail Studio</h3>
+            <p>Videona uygun, tıklanma oranı yüksek thumbnail fikirleri ve tasarımları üret.</p>
+            <span class="btn btn-ghost btn-block">Haber ver</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="nasil" style="padding-top:0">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Nasıl çalışır</span>
+          <h2 class="h2">Üç adımda başla</h2>
+        </div>
+        <div class="steps">
+          <div class="step glass"><div class="step-n">1</div><h3>Hesabını aç</h3><p class="muted">Tek hesapla tüm araçlara eriş.</p></div>
+          <div class="step glass"><div class="step-n">2</div><h3>Kanalını analiz et</h3><p class="muted">Rakip ve örnek kanalların formülünü çıkar.</p></div>
+          <div class="step glass"><div class="step-n">3</div><h3>Mentörünle ilerle</h3><p class="muted">Birebir görüşmelerle stratejini netleştir.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="container">
+        <div class="cta card glass glow">
+          <h2 class="h2">Kanalını birlikte büyütelim</h2>
+          <p class="lead">Mentörlük programı hakkında bilgi almak için WhatsApp’tan yaz.</p>
+          <a class="btn btn-wa btn-lg" href="https://wa.me/905377935090">WhatsApp’tan yaz</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <div class="container">
+      <span>© 2026 Kara Kutu YouTube Akademisi</span>
+      <span><a href="https://dashboard.karakutuyoutube.com/gizlilik">Gizlilik</a> · <a href="https://dashboard.karakutuyoutube.com/kosullar">Kullanım koşulları</a></span>
+    </div>
+  </footer>
+
+  <script src="../theme.js"></script>
+</body>
+</html>

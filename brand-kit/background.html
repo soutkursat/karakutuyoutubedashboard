@@ -1,0 +1,26 @@
+<!-- Kara Kutu Brand Kit · background.html
+     Paste as the FIRST child of <body>. Purely decorative (aria-hidden, no pointer events).
+     All colours come from tokens.css theme variables, so it follows the active theme.
+     React version: src/components/Background.tsx in the Dashboard repo (identical markup). -->
+<div class="bg-fx" aria-hidden="true">
+  <div class="bg-side bg-side-l"></div>
+  <div class="bg-side bg-side-r"></div>
+  <div class="bg-edge bg-edge-l"></div>
+  <div class="bg-edge bg-edge-r"></div>
+  <div class="bg-logo">
+    <svg viewBox="0 0 240 170" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="yt-fill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" class="yt-s1" /><stop offset="1" class="yt-s2" />
+        </linearGradient>
+        <linearGradient id="yt-stroke" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" class="yt-s3" /><stop offset="0.5" class="yt-s4" /><stop offset="1" class="yt-s5" />
+        </linearGradient>
+        <filter id="yt-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="44" /></filter>
+      </defs>
+      <rect class="yt-halo" x="14" y="14" width="212" height="142" rx="44" filter="url(#yt-blur)" />
+      <rect x="6" y="6" width="228" height="158" rx="46" fill="url(#yt-fill)" stroke="url(#yt-stroke)" stroke-width="1.5" />
+      <path class="yt-play" d="M98 52.5c0-3.2 3.5-5.2 6.3-3.6l52.4 30.3c2.8 1.6 2.8 5.6 0 7.2l-52.4 30.3c-2.8 1.6-6.3-.4-6.3-3.6z" />
+    </svg>
+  </div>
+</div>

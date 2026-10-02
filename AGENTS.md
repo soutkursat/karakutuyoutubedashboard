@@ -49,6 +49,11 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
   planı 500 MB veritabanı. Ağır/sürekli işler ekleme.
 - Google: sadece randevu → takvim etkinliği + otomatik Meet linki. Müsaitlik Google'dan OKUNMAZ (kullanıcı tercihi).
 
+## Marka kiti (tüm Kara Kutu projeleri için ortak)
+`brand-kit/` klasörü tüm ürünlerin (ana site, ChannelPrompt, Thumbnail…) ortak tasarım sistemi ve
+proje rehberidir (İngilizce): `ECOSYSTEM.md`, `DESIGN.md`, `HUB-SITE.md`, `AGENTS.template.md`, `tokens.css`.
+Renk/tema/bileşen değiştirirsen önce `brand-kit/tokens.css`'i güncelle, sonra bu projenin `src/styles.css`'ine yansıt.
+
 ## Tasarım dili
 Siyah zemin, kırmızı→turuncu gradyan vurgu, ince grid dokusu, cam (glass) kartlar.
 **Temalar (kırmızı/mavi/beyaz):** vurgu rengini ASLA sabit yazma; `var(--accent-rgb)`, `var(--grad-btn)`, `var(--accent-text)`,
