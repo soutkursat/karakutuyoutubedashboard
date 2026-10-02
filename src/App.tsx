@@ -4,6 +4,7 @@ import { AppShell } from './components/AppShell'
 import { Guard, homeFor } from './components/Guard'
 import { IconCalendar, IconCalendarPlus, IconClock, IconHome, IconSettings, IconUser, IconUsers } from './components/Icons'
 import { AuthPage } from './pages/AuthPage'
+import { PrivacyPage, TermsPage } from './pages/LegalPage'
 import { StudentHome } from './pages/student/StudentHome'
 import { BookPage } from './pages/student/BookPage'
 import { MyAppointments } from './pages/student/MyAppointments'
@@ -45,6 +46,9 @@ export function App() {
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/giris" element={<AuthPage />} />
+          {/* Herkese açık yasal sayfalar (Google OAuth için gerekli) */}
+          <Route path="/gizlilik" element={<PrivacyPage />} />
+          <Route path="/kosullar" element={<TermsPage />} />
 
           <Route
             path="/panel"

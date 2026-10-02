@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { Field, PasswordInput } from '../components/Common'
 import { IconArrowRight, IconCalendarPlus, IconVideo, IconWhatsapp } from '../components/Icons'
@@ -150,6 +150,11 @@ export function AuthPage() {
           </form>
         </section>
       </div>
+      <footer className="auth-foot">
+        <Link to="/gizlilik">Gizlilik Politikası</Link>
+        <span>·</span>
+        <Link to="/kosullar">Kullanım Koşulları</Link>
+      </footer>
     </div>
   )
 }
