@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && tsc -p tsconfig.api.json && vite build",
+    "build": "tsc -b && tsc -p api/tsconfig.json && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b && tsc -p tsconfig.api.json"
+    "typecheck": "tsc -b && tsc -p api/tsconfig.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",

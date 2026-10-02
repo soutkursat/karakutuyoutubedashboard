@@ -34,6 +34,7 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
 - Google Takvim senkronu `api/_lib/google.ts` içinde (randevu → etkinlik + Meet linki; takvimden dolu saat okunmaz).
   İstemci `kickSync()` ile tetikler; randevu durumunu değiştiren her yeni işlemden sonra `kickSync(true)` çağır.
 - `api/` altında göreli importlar `.js` uzantısıyla yazılır (`./_lib/server.js`), yoksa Vercel'de çalışmaz.
+  `api/` kendi `api/tsconfig.json`'unu kullanır (Node tipleri); Vercel en yakın tsconfig'i aldığı için bunu silme.
 - Arayüz metinleri Türkçe.
 - **Odak kaybı tuzağı:** `useEffect` bağımlılıklarına satır içi fonksiyon (ör. `onClose`) koyma; her çizimde değişir,
   efekt yeniden çalışır ve odağı yazı kutusundan çalar (her harften sonra yazma kesilir). Referansta tut (`Modal.tsx`).

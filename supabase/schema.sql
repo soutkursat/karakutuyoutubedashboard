@@ -1,7 +1,13 @@
 -- =====================================================================
 --  KARA KUTU — Supabase veritabanı şeması
---  Supabase panelinde: SQL Editor → New query → bu dosyanın tamamını yapıştır → Run
+--  Supabase panelinde: SQL Editor → New query → bu dosyanın TAMAMINI yapıştır → Run
 --  (Tekrar çalıştırılabilir; mevcut veriyi silmez.)
+--
+--  ÖNEMLİ: Dosya yaklaşık 600 satırdır. Yapıştırdıktan sonra editörde EN ALTA in ve
+--  "DOSYA SONU" satırını gördüğünden emin ol. Görmüyorsan kopyalama yarım kalmıştır.
+--  GitHub'da en kolay yol: dosyayı aç → sağ üstteki "Copy raw file" (kopyala) simgesi.
+--  Run'a basmadan önce editörde hiçbir yeri SEÇİLİ bırakma (seçiliyse sadece seçili kısım çalışır).
+--  Başarılı olursa altta "Results" kısmında: KURULUM TAMAM
 -- =====================================================================
 
 create extension if not exists btree_gist;
@@ -588,3 +594,7 @@ do $$ begin
   alter publication supabase_realtime add table public.appointments;
 exception when duplicate_object or undefined_object then null;
 end $$;
+
+-- Kurulum başarılıysa sonuç alanında bu satır görünür
+select 'KURULUM TAMAM' as durum, (select count(*) from public.profiles) as kullanici_sayisi;
+-- ======================== DOSYA SONU ========================
