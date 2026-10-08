@@ -115,7 +115,7 @@ export function AdminStudents() {
         <div className="card glass"><Empty icon={<IconUsers />} title="Öğrenci bulunamadı" /></div>
       ) : (
         <div className="card glass table-card">
-          <table className="table">
+          <table className="table table-stack">
             <thead>
               <tr><th>Öğrenci</th><th>WhatsApp</th><th>Kanallar</th><th>Skool</th><th>Randevu hakkı</th><th>Durum</th><th /></tr>
             </thead>
@@ -125,14 +125,14 @@ export function AdminStudents() {
                 const qt = computeQuota(u, appts, settings, now)
                 return (
                   <tr key={u.id} className={cx('row-click', u.status === 'disabled' && 'row-off')} onClick={() => setDetailId(u.id)}>
-                    <td>
+                    <td className="c-user">
                       <div className="user-cell">
                         <span className="avatar sm">{initials(u.name)}</span>
                         <div><strong>{u.name}</strong><span className="muted">{u.email}</span></div>
                       </div>
                     </td>
-                    <td className="nowrap">{u.phone ? formatPhone(u.phone) : <span className="muted">—</span>}</td>
-                    <td className="nowrap">
+                    <td className="nowrap" data-label="WhatsApp">{u.phone ? formatPhone(u.phone) : <span className="muted">—</span>}</td>
+                    <td className="nowrap" data-label="Kanallar">
                       {chs.length ? (
                         <>
                           {chs.length} kanal
@@ -142,10 +142,10 @@ export function AdminStudents() {
                         <span className="muted">—</span>
                       )}
                     </td>
-                    <td>{u.skoolMember ? <span className="tag tag-wa"><IconCheck size={12} /> Var</span> : <span className="muted">—</span>}</td>
-                    <td className="nowrap">{qt.canBook ? <span className="muted">Açık</span> : formatRemaining((qt.nextAt ?? now) - now)}</td>
-                    <td><span className={cx('badge', u.status === 'active' ? 'badge-confirmed' : 'badge-cancelled')}>{u.status === 'active' ? 'Aktif' : 'Askıda'}</span></td>
-                    <td>
+                    <td data-label="Skool">{u.skoolMember ? <span className="tag tag-wa"><IconCheck size={12} /> Var</span> : <span className="muted">—</span>}</td>
+                    <td className="nowrap" data-label="Randevu hakkı">{qt.canBook ? <span className="muted">Açık</span> : formatRemaining((qt.nextAt ?? now) - now)}</td>
+                    <td className="c-status"><span className={cx('badge', u.status === 'active' ? 'badge-confirmed' : 'badge-cancelled')}>{u.status === 'active' ? 'Aktif' : 'Askıda'}</span></td>
+                    <td className="c-actions">
                       <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                         <button className="icon-btn" title="WhatsApp" onClick={() => openWhatsapp(waLink(u.phone, `Merhaba ${u.name.split(' ')[0]},`))}><IconWhatsapp size={16} /></button>
                         <button className="icon-btn" title="Düzenle" onClick={() => open(u)}><IconEdit size={16} /></button>
