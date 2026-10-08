@@ -932,3 +932,12 @@ button.sidebar-user:hover, .umenu.open button.sidebar-user { background: rgba(25
   .table-stack .tag { margin-left: 0; }
   .table-stack td.nowrap { white-space: normal; }
 }
+
+/* ---------- mobil: pencere alt butonları taşmasın ---------- */
+@media (max-width: 640px) {
+  .modal-foot { flex-wrap: wrap; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .modal-foot > .btn { flex: 1 1 auto; justify-content: center; min-width: 0; }
+  .modal-foot > .ann-left { flex: 1 1 100%; text-align: center; }
+  .modal-body { padding-left: 16px; padding-right: 16px; }
+  .modal-head { padding-left: 16px; padding-right: 16px; }
+}

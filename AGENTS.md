@@ -71,6 +71,8 @@ Arka plan (`components/Background.tsx`: kenar ışıkları + YouTube logosu) oku
 Yeni ekran eklerken mevcut sınıfları kullan: `card glass`, `glow`, `btn btn-primary|btn-ghost|btn-wa|btn-text`,
 `field`, `input`, `chip`, `badge`, `notice`, `seg`, `PageHeader`, `Empty`, `Modal`, `useToast`.
 Mobil (390px) görünümü her değişiklikte kontrol et.
+Mobil kontrolde sadece yatay kaydırma çubuğuna bakma: sola taşan öğe (ör. `justify-content: flex-end` olan buton satırı)
+kaydırma çubuğu oluşturmaz. Her görünür öğenin ekran ve pencere (`.modal`) sınırları içinde kaldığını ölç; pencereleri de aç.
 
 ## Komutlar
 - `npm run dev` — geliştirme sunucusu
