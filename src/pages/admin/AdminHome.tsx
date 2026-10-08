@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { AdminApptList } from '../../components/AdminApptList'
+import { AnnouncementsCard } from '../../components/Announcements'
 import { Empty, PageHeader } from '../../components/Common'
 import { IconArrowRight, IconCalendar, IconClock, IconSparkle, IconUsers } from '../../components/Icons'
 import { currentUser, getAppointments, getStudents } from '../../lib/db'
@@ -61,6 +62,10 @@ export function AdminHome() {
           <Empty icon={<IconCalendar />} title="Yaklaşan randevu yok" desc="Öğrenciler randevu aldıkça burada göreceksin." />
         </div>
       )}
+
+      <div className="section-gap">
+        <AnnouncementsCard />
+      </div>
     </>
   )
 }

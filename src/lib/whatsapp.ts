@@ -54,11 +54,15 @@ export function cancelMessage(a: Appointment, student: User) {
 export function toStudentMessage(a: Appointment, student: User) {
   return lines(
     `Merhaba ${student.name.split(' ')[0]},`,
-    'Kara Kutu YouTube Akademisi mentörlük randevun hakkında bilgi:',
+    a.rescheduledFrom && a.status === 'confirmed'
+      ? 'Kara Kutu YouTube Akademisi mentörlük randevunu yeni bir saate taşıdım:'
+      : 'Kara Kutu YouTube Akademisi mentörlük randevun hakkında bilgi:',
     '',
     `*Tarih:* ${formatDateLong(a.start)}`,
     `*Saat:* ${formatTime(a.start)} - ${formatTime(a.end)} (TR saati)`,
     `*Durum:* ${STATUS_TR[a.status]}`,
+    a.rescheduledFrom && a.status === 'confirmed' ? `*Önceki saat:* ${formatDateLong(a.rescheduledFrom)} - ${formatTime(a.rescheduledFrom)}` : null,
+    a.rescheduleNote && a.status === 'confirmed' ? `*Not:* ${a.rescheduleNote}` : null,
     a.meetLink && a.status === 'confirmed' ? `*Google Meet:* ${a.meetLink}` : null,
     '',
     `*Randevu No:* ${a.code}`,

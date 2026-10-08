@@ -145,6 +145,41 @@ create index if not exists appointments_student_idx on public.appointments (stud
 -- Google Takvim eşleşmesi (v0.3)
 alter table public.appointments add column if not exists google_event_id text;
 alter table public.appointments add column if not exists google_synced_status text;
+-- Erteleme (v0.8): bir önceki saat ve mentörün notu
+alter table public.appointments add column if not exists rescheduled_from timestamptz;
+alter table public.appointments add column if not exists reschedule_note text;
+
+-- ---------------------------------------------------------------------
+-- DUYURULAR (v0.8): yöneticinin tüm öğrencilere pop-up mesajı; her öğrenci bir kez görür
+-- ---------------------------------------------------------------------
+create table if not exists public.announcements (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null check (char_length(title) between 1 and 120),
+  body        text not null check (char_length(body) between 1 and 2000),
+  active      boolean not null default true,
+  created_by  uuid references public.profiles (id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+create table if not exists public.announcement_reads (
+  announcement_id  uuid not null references public.announcements (id) on delete cascade,
+  user_id          uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  read_at          timestamptz not null default now(),
+  primary key (announcement_id, user_id)
+);
+
+-- E-POSTA KAYDI (v0.8): sunucunun gönderdiği her e-posta (yönetici okuyabilir)
+create table if not exists public.email_log (
+  id              bigserial primary key,
+  appointment_id  uuid references public.appointments (id) on delete set null,
+  kind            text not null,
+  to_email        text not null,
+  from_email      text not null,
+  subject         text not null,
+  status          text not null check (status in ('sent', 'failed')),
+  error           text,
+  created_at      timestamptz not null default now()
+);
+create index if not exists email_log_created_idx on public.email_log (created_at desc);
 
 -- ---------------------------------------------------------------------
 -- GOOGLE TAKVİM (sadece sunucu fonksiyonları erişir; politikası yok = tarayıcıdan okunamaz)
@@ -494,6 +529,34 @@ begin
   return result;
 end $$;
 
+-- Yönetici randevuyu yeni bir güne/saate erteler. Süre korunur, randevu onaylı olur,
+-- Google etkinliği bir sonraki senkronda yeni saate taşınır (google_synced_status sıfırlanır).
+create or replace function public.admin_reschedule_appointment(p_id uuid, p_start timestamptz, p_note text default '')
+returns public.appointments
+language plpgsql security definer set search_path = public as $$
+declare a appointments; result appointments;
+begin
+  if not is_admin() then raise exception 'Yetkin yok.'; end if;
+  select * into a from appointments where id = p_id for update;
+  if a.id is null then raise exception 'Randevu bulunamadı.'; end if;
+  if a.status not in ('pending', 'confirmed') then raise exception 'Sadece bekleyen ya da onaylı randevular ertelenebilir.'; end if;
+  if p_start is null or p_start < now() then raise exception 'Yeni tarih geçmişte olamaz.'; end if;
+  if p_start = a.start_at then raise exception 'Yeni saat mevcut saatle aynı.'; end if;
+  begin
+    update appointments set
+      rescheduled_from = a.start_at,
+      start_at = p_start,
+      end_at = p_start + (a.end_at - a.start_at),
+      status = 'confirmed',
+      reschedule_note = nullif(left(trim(coalesce(p_note, '')), 300), ''),
+      google_synced_status = null
+    where id = p_id returning * into result;
+  exception when exclusion_violation then
+    raise exception 'Bu saatte başka bir randevu var. Farklı bir saat seç.';
+  end;
+  return result;
+end $$;
+
 create or replace function public.admin_set_user_status(p_id uuid, p_status text) returns void
 language plpgsql security definer set search_path = public as $$
 begin
@@ -514,6 +577,9 @@ alter table public.appointments enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.app_secrets  enable row level security;
 alter table public.student_channels enable row level security;
+alter table public.announcements enable row level security;
+alter table public.announcement_reads enable row level security;
+alter table public.email_log enable row level security;
 alter table public.google_integration enable row level security;
 alter table public.oauth_states       enable row level security;
 alter table public.external_busy      enable row level security;
@@ -548,6 +614,23 @@ drop policy if exists "kanal: kendin veya yönetici siler" on public.student_cha
 create policy "kanal: kendin veya yönetici siler" on public.student_channels
   for delete to authenticated using (student_id = auth.uid() or public.is_admin());
 
+drop policy if exists "duyuru: aktifleri herkes, tümünü yönetici okur" on public.announcements;
+create policy "duyuru: aktifleri herkes, tümünü yönetici okur" on public.announcements
+  for select to authenticated using (active or public.is_admin());
+drop policy if exists "duyuru: yönetici yazar" on public.announcements;
+create policy "duyuru: yönetici yazar" on public.announcements
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "okundu: kendin veya yönetici okur" on public.announcement_reads;
+create policy "okundu: kendin veya yönetici okur" on public.announcement_reads
+  for select to authenticated using (user_id = auth.uid() or public.is_admin());
+drop policy if exists "okundu: kendin işaretlersin" on public.announcement_reads;
+create policy "okundu: kendin işaretlersin" on public.announcement_reads
+  for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "e-posta kaydı: yönetici okur" on public.email_log;
+create policy "e-posta kaydı: yönetici okur" on public.email_log
+  for select to authenticated using (public.is_admin());
+revoke insert, update, delete on public.email_log from anon, authenticated;
+
 drop policy if exists "ayar: giriş yapan okur" on public.app_settings;
 create policy "ayar: giriş yapan okur" on public.app_settings
   for select to authenticated using (true);
@@ -570,6 +653,7 @@ revoke execute on function public.mark_whatsapp_notified(uuid) from public, anon
 revoke execute on function public.update_my_profile(text, text, boolean) from public, anon;
 revoke execute on function public.admin_set_appointment_status(uuid, text, text) from public, anon;
 revoke execute on function public.admin_set_user_status(uuid, text) from public, anon;
+revoke execute on function public.admin_reschedule_appointment(uuid, timestamptz, text) from public, anon;
 revoke execute on function public.busy_slots(timestamptz, timestamptz) from public, anon;
 grant execute on function public.book_appointment(timestamptz, text, text) to authenticated;
 grant execute on function public.cancel_my_appointment(uuid, text) to authenticated;
@@ -577,6 +661,7 @@ grant execute on function public.mark_whatsapp_notified(uuid) to authenticated;
 grant execute on function public.update_my_profile(text, text, boolean) to authenticated;
 grant execute on function public.admin_set_appointment_status(uuid, text, text) to authenticated;
 grant execute on function public.admin_set_user_status(uuid, text) to authenticated;
+grant execute on function public.admin_reschedule_appointment(uuid, timestamptz, text) to authenticated;
 grant execute on function public.busy_slots(timestamptz, timestamptz) to authenticated;
 revoke execute on function public.replace_external_busy(jsonb) from public, anon, authenticated;
 revoke execute on function public.google_try_lock(int) from public, anon, authenticated;
@@ -592,6 +677,10 @@ grant execute on function public.check_signup(text, text, text) to anon, authent
 -- Canlı güncelleme (yönetici paneli yeni randevuları anında görsün)
 do $$ begin
   alter publication supabase_realtime add table public.appointments;
+exception when duplicate_object or undefined_object then null;
+end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.announcements;
 exception when duplicate_object or undefined_object then null;
 end $$;
 

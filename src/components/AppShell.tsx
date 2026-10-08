@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { AnnouncementGate } from './Announcements'
 import { Brand } from './Brand'
 import { IconMenu, IconX } from './Icons'
 import { UserMenu } from './UserMenu'
@@ -53,6 +54,7 @@ export function AppShell({ user, nav, area }: { user: User; nav: NavItem[]; area
           <Outlet />
         </main>
       </div>
+      {user.role === 'student' && <AnnouncementGate />}
     </div>
   )
 }

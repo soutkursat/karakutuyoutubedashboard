@@ -38,6 +38,10 @@ export interface Appointment {
   whatsappNotifiedAt?: string
   cancelReason?: string
   cancelledBy?: Role
+  /** Ertelendiyse önceki başlangıç saati (ISO) */
+  rescheduledFrom?: string
+  /** Erteleme notu (öğrenci görür) */
+  rescheduleNote?: string
   createdAt: string
   updatedAt: string
 }
@@ -66,6 +70,8 @@ export interface Settings {
   whatsappNumber: string
   defaultMeetLink: string
   autoConfirm: boolean
+  /** Onay / erteleme / iptalde öğrenciye otomatik e-posta (sistem@ adresinden) */
+  autoEmails: boolean
   registrationOpen: boolean
   /** Sadece yönetici görür (ayrı, gizli tabloda tutulur) */
   inviteCode: string
@@ -99,4 +105,17 @@ export interface Busy {
   start: string
   end: string
   mine: boolean
+}
+
+/** Yöneticinin tüm öğrencilere gösterdiği pop-up duyuru */
+export interface Announcement {
+  id: string
+  title: string
+  body: string
+  active: boolean
+  createdAt: string
+  /** Yönetici için: kaç öğrenci gördü */
+  readCount: number
+  /** Öğrenci için: ben gördüm mü */
+  read: boolean
 }

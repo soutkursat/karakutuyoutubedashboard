@@ -10,7 +10,7 @@
  */
 import { emit } from './storage'
 import { isConfigured, supabase } from './supabase'
-import type { Appointment, AppointmentStatus, Busy, Channel, ContentFormat, Settings, User } from './types'
+import type { Announcement, Appointment, AppointmentStatus, Busy, Channel, ContentFormat, Settings, User } from './types'
 import { AppError, EMAIL_RE, clean, isMeetLink, normalizePhone, normalizeChannelUrl } from './validation'
 import { dateKey, isValidDateKey, isValidTime, toMinutes } from './time'
 
@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   whatsappNumber: '905377935090',
   defaultMeetLink: '',
   autoConfirm: false,
+  autoEmails: true,
   registrationOpen: true,
   inviteCode: '',
   topics: ['Kanal analizi', 'Diğer'],
@@ -42,6 +43,7 @@ interface State {
   appts: Appointment[]
   busy: Busy[]
   channels: Channel[]
+  announcements: Announcement[]
   settings: Settings
   publicConfig: { registrationOpen: boolean; inviteRequired: boolean }
   /** Hesap askıya alındıysa girişte gösterilecek mesaj */
@@ -55,6 +57,7 @@ let state: State = {
   appts: [],
   busy: [],
   channels: [],
+  announcements: [],
   settings: DEFAULT_SETTINGS,
   publicConfig: { registrationOpen: true, inviteRequired: false },
   blockedReason: '',
@@ -94,6 +97,8 @@ interface ApptRow {
   whatsapp_notified_at: string | null
   cancel_reason: string | null
   cancelled_by: 'student' | 'admin' | null
+  rescheduled_from?: string | null
+  reschedule_note?: string | null
   created_at: string
   updated_at: string
 }
@@ -160,6 +165,8 @@ const toAppt = (r: ApptRow): Appointment => ({
   whatsappNotifiedAt: r.whatsapp_notified_at ?? undefined,
   cancelReason: r.cancel_reason ?? undefined,
   cancelledBy: r.cancelled_by ?? undefined,
+  rescheduledFrom: r.rescheduled_from ? iso(r.rescheduled_from) : undefined,
+  rescheduleNote: r.reschedule_note ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -219,6 +226,39 @@ interface BusyRow {
 // ---------- yükleme ----------
 let loadSeq = 0
 
+interface AnnouncementRow {
+  id: string
+  title: string
+  body: string
+  active: boolean
+  created_at: string
+}
+
+/** Duyurular + kimin gördüğü. Şema güncel değilse panel yine açılsın diye hata yumuşak karşılanır. */
+async function loadAnnouncements(me: User): Promise<Announcement[]> {
+  const [an, reads] = await Promise.all([
+    supabase.from('announcements').select('id,title,body,active,created_at').order('created_at', { ascending: false }).limit(50).returns<AnnouncementRow[]>(),
+    me.role === 'admin'
+      ? supabase.from('announcement_reads').select('announcement_id').returns<{ announcement_id: string }[]>()
+      : supabase.from('announcement_reads').select('announcement_id').eq('user_id', me.id).returns<{ announcement_id: string }[]>(),
+  ])
+  if (an.error || reads.error) {
+    console.warn('Duyurular yüklenemedi (supabase/schema.sql tekrar çalıştırılmalı):', (an.error ?? reads.error)?.message)
+    return []
+  }
+  const counts = new Map<string, number>()
+  for (const r of reads.data ?? []) counts.set(r.announcement_id, (counts.get(r.announcement_id) ?? 0) + 1)
+  return (an.data ?? []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    body: r.body,
+    active: r.active,
+    createdAt: r.created_at,
+    readCount: counts.get(r.id) ?? 0,
+    read: me.role === 'admin' || counts.has(r.id),
+  }))
+}
+
 async function loadAll(userId: string) {
   const seq = ++loadSeq
   const prof = maybe(await supabase.from('profiles').select('*').eq('id', userId).maybeSingle<ProfileRow>())
@@ -230,6 +270,7 @@ async function loadAll(userId: string) {
       appts: [],
       busy: [],
       channels: [],
+      announcements: [],
       blockedReason: prof ? 'Hesabın askıya alınmış. Lütfen bizimle iletişime geç.' : 'Hesap bulunamadı.',
     })
     return
@@ -241,6 +282,7 @@ async function loadAll(userId: string) {
   const chRes = await supabase.from('student_channels').select('*').order('created_at').returns<ChannelRow[]>()
   if (chRes.error) console.warn('Kanallar yüklenemedi (supabase/schema.sql tekrar çalıştırılmalı):', chRes.error.message)
   const channels = (chRes.data ?? []).map(toChannel)
+  const announcements = await loadAnnouncements(me)
 
   if (me.role === 'admin') {
     const [users, appts, secrets] = await Promise.all([
@@ -255,6 +297,7 @@ async function loadAll(userId: string) {
       appts: must(appts).map(toAppt),
       busy: [],
       channels,
+      announcements,
       settings: mergeSettings(settingsRow?.data, maybe(secrets)?.invite_code ?? ''),
       blockedReason: '',
     })
@@ -276,6 +319,7 @@ async function loadAll(userId: string) {
       appts: must(appts).map(toAppt),
       busy: ((must(busy) ?? []) as BusyRow[]).map((b) => ({ start: iso(b.start_at), end: iso(b.end_at), mine: b.mine })),
       channels,
+      announcements,
       settings,
       blockedReason: '',
     })
@@ -305,7 +349,7 @@ const scheduleRefresh = () => {
 }
 
 function clearUser() {
-  setState({ me: null, users: [], appts: [], busy: [], channels: [], settings: DEFAULT_SETTINGS })
+  setState({ me: null, users: [], appts: [], busy: [], channels: [], announcements: [], settings: DEFAULT_SETTINGS })
 }
 
 /** Uygulama açılışında bir kez çağrılır. */
@@ -340,6 +384,11 @@ export async function init() {
     .channel('appointments-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, scheduleRefresh)
     .subscribe()
+  // Yeni duyuru: o an açık olan öğrencilerde hemen çıksın
+  supabase
+    .channel('announcements-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, scheduleRefresh)
+    .subscribe()
 
   // Diğer öğrencilerin aldığı saatler için düzenli yenileme + sekmeye dönünce yenileme
   setInterval(() => {
@@ -368,6 +417,10 @@ export const getAppointments = () => state.appts
 export const getBusy = () => state.busy
 export const getChannels = (studentId: string) => state.channels.filter((c) => c.studentId === studentId)
 export const getSettings = () => state.settings
+export const getAnnouncements = () => state.announcements
+/** Öğrencinin henüz görmediği aktif duyurular (eskiden yeniye) */
+export const getUnreadAnnouncements = () =>
+  state.me?.role === 'student' ? state.announcements.filter((a) => a.active && !a.read).reverse() : []
 export const getPublicConfig = () => state.publicConfig
 export const currentUser = () => state.me
 
@@ -589,6 +642,14 @@ export async function setAppointmentStatus(apptId: string, status: AppointmentSt
   kickSync(true)
 }
 
+/** Yönetici randevuyu yeni gün/saate taşır (randevu onaylı olur, Google etkinliği de taşınır). */
+export async function rescheduleAppointment(apptId: string, startIso: string, note: string) {
+  if (new Date(startIso).getTime() <= Date.now()) throw new AppError('Yeni tarih geçmişte olamaz.')
+  must(await supabase.rpc('admin_reschedule_appointment', { p_id: apptId, p_start: startIso, p_note: clean(note, 300) }))
+  await refresh()
+  kickSync(true)
+}
+
 export async function setMeetLink(apptId: string, link: string) {
   const v = link.trim()
   if (v && !isMeetLink(v)) throw new AppError('Geçerli bir Google Meet linki gir (https://meet.google.com/...).')
@@ -623,6 +684,103 @@ async function callApi<T = Record<string, unknown>>(path: string, body: Record<s
 async function adminApi(body: Record<string, unknown>) {
   await callApi('/api/admin', body)
   await refresh()
+}
+
+// ---------- e-posta (api/mail.ts) ----------
+export interface MailStatus {
+  systemReady: boolean
+  adminReady: boolean
+  systemAddress: string | null
+  adminAddress: string | null
+  host: string | null
+  port: number
+}
+let mail: MailStatus | null = null
+let mailLoadError = ''
+export const getMailStatus = () => mail
+export const getMailLoadError = () => mailLoadError
+
+export async function loadMailStatus() {
+  try {
+    mail = await callApi<MailStatus>('/api/mail', { action: 'status' })
+    mailLoadError = ''
+  } catch (e) {
+    mailLoadError = toAppError(e).message
+  }
+  emit()
+}
+
+export async function sendTestEmail() {
+  return callApi<{ to: string; results: { from: string; ok: boolean; error?: string }[] }>('/api/mail', { action: 'test' })
+}
+
+export type ApptMailKind = 'confirmed' | 'rescheduled' | 'cancelled'
+/**
+ * Randevu bildirimi (sistem@ adresinden). Ayarlarda kapalıysa ya da SMTP kurulmamışsa gönderilmez.
+ * Dönen metin kullanıcıya gösterilecek kısa açıklamadır (boş = bir şey söyleme).
+ */
+export async function notifyByEmail(apptId: string, kind: ApptMailKind, force = false): Promise<{ sent: boolean; info: string }> {
+  if (!force && !state.settings.autoEmails) return { sent: false, info: '' }
+  const r = await callApi<{ sent: boolean; to?: string; reason?: string }>('/api/mail', { action: 'appointment', id: apptId, kind })
+  if (r.sent) return { sent: true, info: `E-posta gönderildi: ${r.to}` }
+  if (r.reason === 'no_email') return { sent: false, info: 'Öğrencinin e-posta adresi yok.' }
+  return { sent: false, info: force ? 'E-posta ayarları yapılmamış (Ayarlar → E-posta).' : '' }
+}
+
+/** Yöneticinin yazdığı e-posta (kursat@ adresinden). Sunucu tek seferde 20 alıcı kabul eder → parçalara böl. */
+export async function adminSendEmail(studentIds: string[], subject: string, body: string, onProgress?: (done: number) => void) {
+  const s = clean(subject, 150)
+  const b = body.trim()
+  if (!studentIds.length) throw new AppError('Alıcı seçilmedi.')
+  if (!s) throw new AppError('Konu boş olamaz.')
+  if (!b) throw new AppError('Mesaj boş olamaz.')
+  if (b.length > 5000) throw new AppError('Mesaj en fazla 5000 karakter olabilir.')
+  let sent = 0
+  const failed: { id: string; error: string }[] = []
+  for (let i = 0; i < studentIds.length; i += 20) {
+    const r = await callApi<{ sent: number; failed: { id: string; error: string }[] }>('/api/mail', {
+      action: 'custom',
+      studentIds: studentIds.slice(i, i + 20),
+      subject: s,
+      body: b,
+    })
+    sent += r.sent
+    failed.push(...r.failed)
+    onProgress?.(Math.min(studentIds.length, i + 20))
+    // Ayar hatası: kalan grupları boşuna deneme
+    if (!r.sent && r.failed.some((f) => /giriş yapılamadı|bağlanılamadı/.test(f.error))) {
+      throw new AppError(r.failed[0].error)
+    }
+  }
+  return { sent, failed }
+}
+
+// ---------- duyurular ----------
+export async function createAnnouncement(title: string, body: string) {
+  const t = clean(title, 120)
+  const b = body.trim()
+  if (!t) throw new AppError('Başlık boş olamaz.')
+  if (!b) throw new AppError('Mesaj boş olamaz.')
+  if (b.length > 2000) throw new AppError('Mesaj en fazla 2000 karakter olabilir.')
+  must(await supabase.from('announcements').insert({ title: t, body: b, created_by: state.me?.id }))
+  await refresh()
+}
+
+export async function setAnnouncementActive(id: string, active: boolean) {
+  must(await supabase.from('announcements').update({ active }).eq('id', id))
+  await refresh()
+}
+
+export async function deleteAnnouncement(id: string) {
+  must(await supabase.from('announcements').delete().eq('id', id))
+  await refresh()
+}
+
+/** Öğrenci duyuruyu kapattı: bir daha gösterme. Hata olsa bile bu oturumda tekrar gösterme. */
+export async function markAnnouncementRead(id: string) {
+  setState({ announcements: state.announcements.map((a) => (a.id === id ? { ...a, read: true } : a)) })
+  const { error } = await supabase.from('announcement_reads').insert({ announcement_id: id })
+  if (error && (error as AnyError).code !== '23505') console.warn('Duyuru okundu işaretlenemedi', error.message)
 }
 
 // ---------- Google Takvim ----------

@@ -33,6 +33,13 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
   wa.me linkiyle gelen emojileri "�" olarak gösteriyor); sadece düz metin + `*kalın*`.
 - Google Takvim senkronu `api/_lib/google.ts` içinde (randevu → etkinlik + Meet linki; takvimden dolu saat okunmaz).
   İstemci `kickSync()` ile tetikler; randevu durumunu değiştiren her yeni işlemden sonra `kickSync(true)` çağır.
+- E-posta `api/_lib/mail.ts` + `api/mail.ts` (Natro SMTP, nodemailer). İki gönderici: `SMTP_SYSTEM_*` (sistem@, otomatik
+  randevu bildirimleri) ve `SMTP_ADMIN_*` (kursat@, yöneticinin yazdığı e-postalar). Alıcılar HER ZAMAN veritabanından
+  (öğrenci id'si) gelir; serbest adrese gönderim kapısı açma. Tek çağrıda en fazla 20 alıcı (Vercel süre sınırı).
+  Randevu durumunu değiştiren yeni işlemlerde `notifyByEmail()` çağır (Ayarlar'daki `autoEmails`e uyar). E-posta hatası işlemi geri almaz.
+- Duyurular: `announcements` + `announcement_reads` tabloları; öğrenci tarafında `AnnouncementGate` (AppShell) bir kez gösterir,
+  kapatma 3 sn sonra açılır.
+- Erteleme: `admin_reschedule_appointment` (SQL) → `rescheduled_from`, `reschedule_note`; Google etkinliği senkronda taşınır.
 - `api/` altında göreli importlar `.js` uzantısıyla yazılır (`./_lib/server.js`), yoksa Vercel'de çalışmaz.
   `api/` kendi `api/tsconfig.json`'unu kullanır (Node tipleri); Vercel en yakın tsconfig'i aldığı için bunu silme.
 - Arayüz metinleri Türkçe.

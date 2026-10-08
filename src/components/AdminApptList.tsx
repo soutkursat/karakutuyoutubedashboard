@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ApptCard } from './ApptCard'
-import { Field } from './Common'
-import { IconBan, IconCheck, IconLink, IconVideo, IconWhatsapp } from './Icons'
+import { Field, Switch } from './Common'
+import { IconBan, IconCheck, IconClock, IconLink, IconVideo, IconWhatsapp } from './Icons'
 import { Modal } from './Modal'
+import { RescheduleModal, type RescheduleChoice } from './RescheduleModal'
 import { useToast } from './Toast'
-import { getUser, setAppointmentStatus, setMeetLink } from '../lib/db'
+import { getMailStatus, getSettings, getUser, loadMailStatus, notifyByEmail, rescheduleAppointment, setAppointmentStatus, setMeetLink, type ApptMailKind } from '../lib/db'
+import { formatDateLong, formatTime } from '../lib/time'
 import type { Appointment } from '../lib/types'
 import { errMsg } from '../lib/ui'
 import { formatPhone } from '../lib/validation'
@@ -16,22 +18,55 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
   const [link, setLink] = useState('')
   const [cancelFor, setCancelFor] = useState<Appointment | null>(null)
   const [reason, setReason] = useState('')
+  const [cancelMail, setCancelMail] = useState(true)
+  const [reschedFor, setReschedFor] = useState<Appointment | null>(null)
+
+  // Pencerelerde "e-posta ayarları yapılmamış" uyarısı için (bir kez yeterli)
+  useEffect(() => {
+    if (!getMailStatus()) void loadMailStatus()
+  }, [])
 
   const [busy, setBusy] = useState(false)
-  /** Sunucu işlemini çalıştır; aynı anda ikinci tıklamayı engelle. Başarılıysa true döner. */
-  const run = async (fn: () => Promise<unknown>, ok: string) => {
+  /**
+   * Sunucu işlemini çalıştır; aynı anda ikinci tıklamayı engelle. Başarılıysa true döner.
+   * mail verilirse işlemden sonra öğrenciye e-posta gider (force=false → Ayarlar'daki otomatik e-posta seçeneğine uyar).
+   * E-posta hatası işlemi geri almaz; sadece ayrıca bildirilir.
+   */
+  const run = async (fn: () => Promise<unknown>, ok: string, mail?: { id: string; kind: ApptMailKind; force?: boolean }) => {
     if (busy) return false
     setBusy(true)
     try {
       await fn()
       toast(ok)
-      return true
     } catch (e) {
       toast(errMsg(e), 'error')
       return false
     } finally {
       setBusy(false)
     }
+    // E-posta arka planda gider (Meet linki için birkaç saniye sürebilir); pencere beklemez
+    if (mail) {
+      notifyByEmail(mail.id, mail.kind, mail.force).then(
+        (r) => r.info && toast(r.info, r.sent ? 'success' : 'info'),
+        (e) => toast(`E-posta gönderilemedi: ${errMsg(e)}`, 'error'),
+      )
+    }
+    return true
+  }
+
+  const openCancel = (a: Appointment) => {
+    setCancelFor(a)
+    setReason('')
+    setCancelMail(getSettings().autoEmails)
+  }
+
+  const doReschedule = async (a: Appointment, c: RescheduleChoice) => {
+    const ok = await run(
+      () => rescheduleAppointment(a.id, c.startIso, c.note),
+      `Randevu ${formatTime(c.startIso)} saatine ertelendi`,
+      c.sendEmail ? { id: a.id, kind: 'rescheduled', force: true } : undefined,
+    )
+    if (ok) setReschedFor(null)
   }
 
   return (
@@ -64,14 +99,25 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                       <IconVideo size={14} /> <a href={a.meetLink} target="_blank" rel="noopener noreferrer" className="link">{a.meetLink}</a>
                     </p>
                   )}
+                  {a.rescheduledFrom && active && (
+                    <p className="appt-note">
+                      Ertelendi · önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}
+                      {a.rescheduleNote ? ` · “${a.rescheduleNote}”` : ''}
+                    </p>
+                  )}
                   {a.cancelReason && <p className="appt-note">İptal ({a.cancelledBy === 'admin' ? 'yönetici' : 'öğrenci'}): {a.cancelReason}</p>}
                 </>
               }
               actions={
                 <>
                   {a.status === 'pending' && (
-                    <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu onaylandı')}>
+                    <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu onaylandı', { id: a.id, kind: 'confirmed' })}>
                       <IconCheck size={16} /> Onayla
+                    </button>
+                  )}
+                  {active && !past && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => setReschedFor(a)}>
+                      <IconClock size={16} /> Ertele
                     </button>
                   )}
                   {active && !past && (
@@ -90,12 +136,12 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                     </button>
                   )}
                   {active && (
-                    <button className="btn btn-text btn-sm danger" onClick={() => { setCancelFor(a); setReason('') }}>
+                    <button className="btn btn-text btn-sm danger" onClick={() => openCancel(a)}>
                       <IconBan size={16} /> İptal
                     </button>
                   )}
                   {a.status === 'cancelled' && !past && (
-                    <button className="btn btn-text btn-sm" disabled={busy} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu geri açıldı')}>
+                    <button className="btn btn-text btn-sm" disabled={busy} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'Randevu geri açıldı', { id: a.id, kind: 'confirmed' })}>
                       Geri al
                     </button>
                   )}
@@ -119,10 +165,15 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
               disabled={busy}
               onClick={async () => {
                 if (!meetFor) return
-                const ok = await run(async () => {
-                  await setMeetLink(meetFor.id, link)
-                  if (meetFor.status === 'pending' && link.trim()) await setAppointmentStatus(meetFor.id, 'confirmed')
-                }, 'Meet linki kaydedildi')
+                const confirms = meetFor.status === 'pending' && !!link.trim()
+                const ok = await run(
+                  async () => {
+                    await setMeetLink(meetFor.id, link)
+                    if (confirms) await setAppointmentStatus(meetFor.id, 'confirmed')
+                  },
+                  confirms ? 'Meet linki kaydedildi, randevu onaylandı' : 'Meet linki kaydedildi',
+                  confirms ? { id: meetFor.id, kind: 'confirmed' } : undefined,
+                )
                 if (ok) setMeetFor(null)
               }}
             >
@@ -154,7 +205,11 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
               disabled={busy}
               onClick={async () => {
                 if (!cancelFor) return
-                const ok = await run(() => setAppointmentStatus(cancelFor.id, 'cancelled', reason), 'Randevu iptal edildi')
+                const ok = await run(
+                  () => setAppointmentStatus(cancelFor.id, 'cancelled', reason),
+                  'Randevu iptal edildi',
+                  cancelMail ? { id: cancelFor.id, kind: 'cancelled', force: true } : undefined,
+                )
                 if (ok) setCancelFor(null)
               }}
             >
@@ -163,11 +218,36 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
           </>
         }
       >
-        <p className="muted">İptal sonrası “Öğrenciye yaz” ile öğrenciyi WhatsApp’tan bilgilendirebilirsin.</p>
+        {cancelFor && new Date(cancelFor.end).getTime() > now && (
+          <div className="notice resched-hint">
+            <span>İptal etmek yerine randevuyu başka bir güne ya da saate taşıyabilirsin.</span>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setReschedFor(cancelFor)
+                setCancelFor(null)
+              }}
+            >
+              <IconClock size={16} /> Bunun yerine ertele
+            </button>
+          </div>
+        )}
         <Field label="Sebep (öğrenci görür)">
           <textarea className="input" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
+        <label className="toggle-row">
+          <div>
+            <strong>Öğrenciye e-posta gönder</strong>
+            <p className="muted">
+              {getMailStatus() && !getMailStatus()?.systemReady ? 'E-posta ayarları yapılmamış (Ayarlar → E-posta).' : 'İptal bilgisi ve sebep e-postayla gider.'}
+            </p>
+          </div>
+          <Switch checked={cancelMail} label="Öğrenciye e-posta gönder" onChange={setCancelMail} />
+        </label>
+        <p className="muted small-text">İstersen “Öğrenciye yaz” ile WhatsApp’tan da bilgilendirebilirsin.</p>
       </Modal>
+
+      {reschedFor && <RescheduleModal key={reschedFor.id} appt={reschedFor} busy={busy} onClose={() => setReschedFor(null)} onSubmit={doReschedule} />}
     </>
   )
 }

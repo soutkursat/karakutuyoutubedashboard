@@ -53,7 +53,21 @@ e-postası gider, iptalde etkinlik silinir. Müsaitlik Google'dan okunmaz; Müsa
 7. Panel → **Müsaitlik → Google Takvim → "Google hesabımı bağla"**. Google "doğrulanmamış uygulama" uyarısı
    gösterirse **Gelişmiş → Kara Kutu Panel'e git** de (kendi uygulaman olduğu için güvenli), takvim iznini işaretle.
 
-### 4) Yerelde çalıştırma
+### 4) E-posta (Natro e-posta hesaplarıyla)
+Randevu onaylanınca / ertelenince / iptal edilince öğrenciye **sistem@karakutuyoutube.com**'dan otomatik e-posta gider;
+Öğrenciler sayfasından **kursat@karakutuyoutube.com** adresiyle öğrencilere e-posta yazabilirsin.
+
+1. Natro panel → E-posta → iki hesap aç: `sistem@karakutuyoutube.com` ve `kursat@karakutuyoutube.com` (güçlü şifreyle).
+2. Natro'nun e-posta ayarları sayfasından **giden posta (SMTP) sunucusunu** ve portunu not et (genelde `mail.karakutuyoutube.com`, port **465** SSL).
+3. Vercel → Settings → Environment Variables:
+   `SMTP_HOST`, `SMTP_PORT`, `SMTP_SYSTEM_USER`, `SMTP_SYSTEM_PASS`, `SMTP_ADMIN_USER`, `SMTP_ADMIN_PASS` → **Redeploy**.
+   (Şifreler SADECE Vercel'de durur; `VITE_` ile başlatma, kimseyle paylaşma.)
+4. Supabase SQL Editor'de `supabase/schema.sql`'i **tekrar** çalıştır (dosyanın tamamı; sonda "KURULUM TAMAM" görmelisin).
+5. Panel → **Ayarlar → E-posta** kartında iki adres de "Hazır" görünmeli → **Kendime test e-postası gönder**.
+6. Spam'e düşmemesi için Natro DNS'te SPF (ve varsa DKIM) kaydının açık olduğundan emin ol. Natro paylaşımlı
+   hosting saatlik gönderim sınırı koyar; toplu e-postayı yüzlerce kişiye birden atma.
+
+### 5) Yerelde çalıştırma
 ```bash
 cp .env.example .env.local   # değerleri doldur
 npm install
@@ -93,7 +107,12 @@ npm run dev                  # http://localhost:5173
 
 **Yönetim paneli** (sadece `kursatyoutube`)
 - Genel bakış: bugün, onay bekleyen, 7 gün, öğrenci sayısı
-- Randevular: filtre + arama, onayla, Meet linki ekle, tamamlandı, iptal/geri al, öğrenciye WhatsApp'tan yaz
+- Randevular: filtre + arama, onayla, **ertele** (gün + saat seç, boş saatler önerilir, öğrenciye not),
+  Meet linki ekle, tamamlandı, iptal/geri al (iptal penceresinde "Bunun yerine ertele"), öğrenciye WhatsApp'tan yaz
+- E-posta: onay / erteleme / iptalde öğrenciye otomatik e-posta (Ayarlar'dan açılıp kapanır); Öğrenciler sayfasından
+  listedeki tüm öğrencilere ya da tek öğrenciye e-posta (her öğrenciye ayrı gider)
+- Duyurular (Genel bakış): tüm öğrencilere pop-up mesaj; panelde olmayanlar giriş yapınca görür, herkes bir kez görür,
+  kapatma butonu 3 saniye sonra açılır; kaç öğrencinin gördüğü listelenir
 - Müsaitlik: haftalık saat aralıkları, görüşme süresi, mola, min. bildirim süresi, ileri tarih limiti, kapalı günler
 - Öğrenciler: ekle, düzenle, şifre sıfırla, özel not, askıya al, sil
 - Ayarlar: WhatsApp numarası, varsayılan Meet linki, otomatik onay, kayıt açık/kapalı, davet kodu, konu listesi, JSON dışa aktarma
@@ -125,6 +144,7 @@ src/
 api/admin.ts         ← Vercel sunucu fonksiyonu (öğrenci ekle/sil/şifre sıfırla)
 api/google.ts        ← Google Takvim: bağlan / durum / senkron
 api/google-callback.ts ← Google izin ekranından dönüş
+api/mail.ts          ← e-posta: durum / test / randevu bildirimi / yöneticinin e-postası (Natro SMTP)
 api/_lib/            ← sunucu ortak kodu (Google senkron mantığı burada)
 supabase/schema.sql  ← veritabanı: tablolar, güvenlik kuralları, randevu fonksiyonları
 supabase/admin.sql   ← yönetici hesabını tanımlama
@@ -146,4 +166,5 @@ AGENTS.md            ← Codex'in uyacağı proje kuralları
 
 1. ~~**Aşama 2 — Gerçek sunucu (Supabase + Vercel)**~~ ✅
 2. ~~**Aşama 3 — Google Takvim + Meet**~~ ✅
-3. **Aşama 4 — Otomatik hatırlatmalar:** 24 saat / 1 saat önce e-posta (Resend) veya WhatsApp Business API.
+3. ~~**Aşama 4 — E-posta bildirimleri, erteleme, duyurular**~~ ✅
+4. **Aşama 5 — Otomatik hatırlatmalar:** 24 saat / 1 saat önce e-posta (zamanlanmış iş gerektirir; ücretsiz planda Vercel Cron günde 1 kez çalışır).

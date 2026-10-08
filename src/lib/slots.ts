@@ -62,3 +62,30 @@ export function buildSlots(settings: Settings, busyList: Busy[], now: number): D
   }
   return days
 }
+
+/**
+ * Yöneticinin erteleme penceresi için: seçilen günün haftalık programdaki boş saatleri.
+ * Bekleme/ileri tarih sınırları uygulanmaz (yönetici istediği güne taşıyabilir); kapalı gün de gösterilir.
+ * Doluluk: diğer aktif randevular (ertelenen randevunun kendisi hariç).
+ */
+export function freeStartsOn(settings: Settings, key: string, appts: Appointment[], excludeId: string, durationMin: number, now: number) {
+  const busy = activeAppointments(appts)
+    .filter((a) => a.id !== excludeId)
+    .map((a) => ({ s: new Date(a.start).getTime(), e: new Date(a.end).getTime() }))
+  const step = settings.slotMinutes + settings.bufferMinutes
+  const out: string[] = []
+  for (const r of settings.weekly[weekdayOf(key)] ?? []) {
+    for (let m = toMinutes(r.start); m + durationMin <= toMinutes(r.end); m += step) {
+      const s = toInstant(key, fromMinutes(m)).getTime()
+      const e = s + durationMin * 60000
+      if (s <= now || busy.some((b) => overlaps(s, e, b.s, b.e))) continue
+      out.push(fromMinutes(m))
+    }
+  }
+  return out.sort()
+}
+
+/** Verilen aralık başka bir aktif randevuyla çakışıyor mu (hızlı uyarı; asıl kontrol veritabanında) */
+export function clashes(appts: Appointment[], excludeId: string, startMs: number, endMs: number) {
+  return activeAppointments(appts).some((a) => a.id !== excludeId && overlaps(startMs, endMs, new Date(a.start).getTime(), new Date(a.end).getTime()))
+}

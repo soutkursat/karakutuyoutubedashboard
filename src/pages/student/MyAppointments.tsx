@@ -8,6 +8,7 @@ import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
 import { canStudentCancel, cancelByStudent, currentUser, getAppointments, getSettings, markWhatsappNotified } from '../../lib/db'
 import { useDataVersion, useNow } from '../../lib/hooks'
+import { formatDateLong, formatTime } from '../../lib/time'
 import type { Appointment } from '../../lib/types'
 import { cx, errMsg } from '../../lib/ui'
 import { cancelMessage, newBookingMessage, openWhatsapp, waLink } from '../../lib/whatsapp'
@@ -89,7 +90,17 @@ export function MyAppointments() {
               key={a.id}
               a={a}
               now={now}
-              meta={a.cancelReason && <p className="appt-note">Sebep: {a.cancelReason}</p>}
+              meta={
+                <>
+                  {a.rescheduledFrom && a.status !== 'cancelled' && (
+                    <p className="resched-info">
+                      Ertelendi · önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}
+                      {a.rescheduleNote && <> · “{a.rescheduleNote}”</>}
+                    </p>
+                  )}
+                  {a.cancelReason && <p className="appt-note">Sebep: {a.cancelReason}</p>}
+                </>
+              }
               actions={
                 tab === 'upcoming' && (
                   <>

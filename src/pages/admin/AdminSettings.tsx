@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Field, PageHeader, Switch } from '../../components/Common'
+import { EmailCard } from '../../components/EmailCard'
 import { IconDownload, IconPlus, IconShield, IconWhatsapp } from '../../components/Icons'
 import { useToast } from '../../components/Toast'
 import { exportData, getSettings, saveSettings } from '../../lib/db'
@@ -73,6 +74,8 @@ export function AdminSettings() {
             </Field>
           </div>
         </section>
+
+        <EmailCard autoEmails={s.autoEmails} onAutoEmails={(v) => set('autoEmails', v)} />
 
         <section className="card glass">
           <h3 className="card-title">Görüşme konuları</h3>

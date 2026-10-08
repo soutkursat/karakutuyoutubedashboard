@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { ChannelRow } from '../../components/ChannelsCard'
 import { Empty, PageHeader, StatusBadge } from '../../components/Common'
+import { ComposeEmailModal } from '../../components/ComposeEmailModal'
 import { StudentFormModal } from '../../components/StudentFormModal'
-import { IconBan, IconCheck, IconEdit, IconPlus, IconSearch, IconTrash, IconUsers, IconWhatsapp } from '../../components/Icons'
+import { IconBan, IconCheck, IconEdit, IconMail, IconPlus, IconSearch, IconTrash, IconUsers, IconWhatsapp } from '../../components/Icons'
 import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
 import { deleteStudent, getAppointments, getChannels, getSettings, getStudents, getUser, setUserStatus } from '../../lib/db'
@@ -33,6 +34,7 @@ export function AdminStudents() {
   const detail = detailId ? getUser(detailId) : undefined
   const [edit, setEdit] = useState<User | 'new' | null>(null)
   const [del, setDel] = useState<User | null>(null)
+  const [mailTo, setMailTo] = useState<{ users: User[]; scope: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
   /** Sunucu işlemi: çift tıklamayı engelle, hatayı göster. Başarılıysa true. */
@@ -76,7 +78,24 @@ export function AdminStudents() {
         eyebrow="Yönetim"
         title="Öğrenciler"
         desc={`${getStudents().length} kayıtlı öğrenci`}
-        actions={<button className="btn btn-primary" onClick={() => open('new')}><IconPlus size={18} /> Öğrenci ekle</button>}
+        actions={
+          <>
+            <button
+              className="btn btn-ghost"
+              disabled={!students.length}
+              title="Listede görünen öğrencilere e-posta gönder"
+              onClick={() =>
+                setMailTo({
+                  users: students,
+                  scope: needle ? 'Arama sonucu' : filter === 'all' ? 'Tüm öğrenciler' : (FILTERS.find((x) => x.id === filter)?.label ?? ''),
+                })
+              }
+            >
+              <IconMail size={18} /> E-posta gönder
+            </button>
+            <button className="btn btn-primary" onClick={() => open('new')}><IconPlus size={18} /> Öğrenci ekle</button>
+          </>
+        }
       />
       <div className="toolbar">
         <div className="seg">
@@ -154,6 +173,8 @@ export function AdminStudents() {
         </div>
       )}
 
+      {mailTo && <ComposeEmailModal recipients={mailTo.users} scope={mailTo.scope} onClose={() => setMailTo(null)} />}
+
       {edit && <StudentFormModal key={edit === 'new' ? 'new' : edit.id} user={edit} onClose={() => setEdit(null)} />}
 
       <Modal
@@ -176,6 +197,9 @@ export function AdminStudents() {
                   <IconWhatsapp size={16} /> WhatsApp
                 </button>
               )}
+              <button className="btn btn-ghost" onClick={() => setMailTo({ users: [detail], scope: detail.name })}>
+                <IconMail size={16} /> E-posta
+              </button>
               <button className="btn btn-ghost" onClick={() => { setDetailId(null); open(detail) }}><IconEdit size={16} /> Düzenle</button>
             </>
           )

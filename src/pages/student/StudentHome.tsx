@@ -75,6 +75,12 @@ export function StudentHome() {
                 <StatusBadge status={next.status} />
                 <span className="chip static">{next.topic}</span>
               </div>
+              {next.rescheduledFrom && (
+                <p className="resched-info">
+                  Mentörün bu randevuyu yeni saate taşıdı (önceki: {formatDateLong(next.rescheduledFrom)} {formatTime(next.rescheduledFrom)})
+                  {next.rescheduleNote && <> · “{next.rescheduleNote}”</>}
+                </p>
+              )}
               {next.status === 'confirmed' && next.meetLink ? (
                 <a
                   className={joinable ? 'btn btn-primary btn-lg' : 'btn btn-ghost btn-lg'}
