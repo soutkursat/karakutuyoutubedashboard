@@ -28,6 +28,8 @@ export function POST(request: Request): Promise<Response> {
           email: g.email,
           lastSyncedAt: g.last_synced_at,
           lastError: g.last_error,
+          // Süreli anahtar = uygulama "Testing" modunda; bu tarihte bağlantı kopacak
+          refreshExpiresAt: g.refresh_token ? (g.refresh_expires_at ?? null) : null,
           redirectUri: redirectUri(request),
         })
       }

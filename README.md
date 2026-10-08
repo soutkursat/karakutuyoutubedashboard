@@ -43,7 +43,10 @@ e-postası gider, iptalde etkinlik silinir. Müsaitlik Google'dan okunmaz; Müsa
 3. **APIs & Services → OAuth consent screen** (Google Auth Platform):
    - User type: **External** · Uygulama adı: *Kara Kutu Panel* · destek e-postası: kendi Gmail'in
    - **Audience → Publishing status → "Publish app" (In production)**. ⚠️ "Testing" modunda kalırsa
-     Google bağlantısı **7 günde bir kopar**.
+     Google bağlantısı **7 günde bir kopar**. Yayınladıktan sonra panelden bağlantıyı kaldırıp **tekrar bağla**
+     (Testing modundayken alınan bağlantı yayınlasan da 7 günün sonunda kopar). Bağlantı koparsa panel
+     Genel Bakış'ta uyarı gösterir ve (e-posta ayarlıysa) sana e-posta atar; tekrar bağlayınca aradaki
+     randevuların Meet linkleri de otomatik oluşur.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**
    - Application type: **Web application**
    - **Authorized redirect URIs:** `https://SITE-ADRESIN/api/google-callback`

@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { AdminApptList } from '../../components/AdminApptList'
 import { Empty, PageHeader } from '../../components/Common'
+import { GoogleAlert } from '../../components/GoogleAlert'
 import { IconCalendar, IconSearch } from '../../components/Icons'
 import { getAppointments, getUser } from '../../lib/db'
 import { useDataVersion, useNow } from '../../lib/hooks'
@@ -47,6 +48,7 @@ export function AdminAppointments() {
   return (
     <>
       <PageHeader eyebrow="Yönetim" title="Randevular" desc="Onayla, Meet linki ekle, öğrenciyi WhatsApp’tan bilgilendir." />
+      <GoogleAlert />
       <div className="toolbar">
         <div className="seg">
           {FILTERS.map((x) => (

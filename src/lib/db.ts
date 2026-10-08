@@ -829,6 +829,8 @@ export interface GoogleStatus {
   email: string | null
   lastSyncedAt: string | null
   lastError: string | null
+  /** Doluysa Google anahtarı süreli (uygulama "Testing" modunda): bu tarihte bağlantı kopar */
+  refreshExpiresAt?: string | null
   redirectUri: string
 }
 interface SyncResponse {

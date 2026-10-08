@@ -5,6 +5,7 @@
  * Harici kütüphane yok; Google REST API'si doğrudan fetch ile çağrılıyor.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { mailEnv, renderEmail, transport } from './mail.js'
 import { HttpError } from './server.js'
 
 const CAL = 'https://www.googleapis.com/calendar/v3'
@@ -28,6 +29,7 @@ interface Integration {
   connected_at: string | null
   last_synced_at: string | null
   last_error: string | null
+  refresh_expires_at?: string | null
 }
 
 /** Veritabanı hatasını kurulum yapan kişiye anlaşılır, ama gerçek sebebi gizlemeyen bir mesaja çevirir. */
@@ -48,23 +50,64 @@ export async function getIntegration(sb: SupabaseClient): Promise<Integration> {
   return (data ?? { email: null, refresh_token: null, connected_at: null, last_synced_at: null, last_error: null }) as Integration
 }
 
-async function accessToken(sb: SupabaseClient, refreshToken: string): Promise<string> {
+/** Google Cloud'da yapılacaklar (bağlantı koptuğunda yöneticiye gösterilir) */
+export const TESTING_FIX =
+  'Google Cloud Console → Google Auth Platform → Audience → "Publish app" ile uygulamayı "In production" yap, sonra panelden Google hesabını TEKRAR bağla (yayınlamadan önce alınan bağlantı yine 7 günde kopar).'
+
+/** Bağlantı neden koptu: Google'ın cevabı + bağlantının yaşı → yöneticiye anlaşılır açıklama */
+function disconnectReason(integ: Integration, googleMsg: string) {
+  const days = integ.connected_at ? (Date.now() - new Date(integ.connected_at).getTime()) / 86400_000 : null
+  const when = new Date().toLocaleString('tr-TR', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })
+  const testing = !!integ.refresh_expires_at || (days !== null && days >= 6.5 && days <= 7.6)
+  const why = testing
+    ? `Google uygulaman "Testing" modunda olduğu için Google bağlantıyı ${days ? Math.round(days) + ' gün sonra' : '7 günde bir'} otomatik kopardı. ${TESTING_FIX}`
+    : 'Google izni geri alınmış ya da Google hesabında güvenlik değişikliği olmuş olabilir (myaccount.google.com → Güvenlik → Üçüncü taraf erişimi). Panelden tekrar bağla.'
+  return `Google Takvim bağlantısı ${when} tarihinde koptu (Google: ${googleMsg}). ${why}`
+}
+
+/** Bağlantı koptuğunda yöneticiye e-posta (e-posta ayarlıysa). Hata olsa da senkronu bozmaz. */
+async function mailAdminsAboutDisconnect(sb: SupabaseClient, reason: string) {
+  try {
+    if (!mailEnv().systemReady) return
+    const { data: admins } = await sb.from('profiles').select('email,name').eq('role', 'admin').eq('status', 'active')
+    const base = (process.env.APP_URL || '').replace(/\/+$/, '')
+    const { t, from } = transport('system')
+    try {
+      for (const a of admins ?? []) {
+        if (!a.email) continue
+        const mail = renderEmail({
+          preheader: 'Yeni randevulara otomatik Meet linki oluşturulmuyor.',
+          title: 'Google Takvim bağlantısı koptu',
+          greeting: `Merhaba ${String(a.name).split(' ')[0]},`,
+          paragraphs: [reason, 'Tekrar bağladığında, bu arada oluşturulan randevuların Meet linkleri de otomatik oluşturulur.'],
+          cta: base ? { label: 'Google hesabını tekrar bağla', url: `${base}/yonetim/musaitlik` } : undefined,
+        })
+        await t.sendMail({ from: `"Kara Kutu Panel" <${from}>`, to: a.email, subject: 'Google Takvim bağlantısı koptu', html: mail.html, text: mail.text })
+      }
+    } finally {
+      t.close()
+    }
+  } catch (e) {
+    console.error('Kopma e-postası gönderilemedi', e)
+  }
+}
+
+async function accessToken(sb: SupabaseClient, integ: Integration): Promise<string> {
   const { clientId, clientSecret } = googleEnv()
   if (!clientId || !clientSecret) throw new HttpError(500, 'Google ayarları eksik (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).')
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' }),
+    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: integ.refresh_token!, grant_type: 'refresh_token' }),
   })
-  const body = (await res.json().catch(() => ({}))) as { access_token?: string; error?: string }
+  const body = (await res.json().catch(() => ({}))) as { access_token?: string; error?: string; error_description?: string }
   if (!res.ok || !body.access_token) {
     if (body.error === 'invalid_grant') {
-      // İzin geri alınmış ya da süresi dolmuş → bağlantıyı düşür, yöneticiye göster
-      await sb
-        .from('google_integration')
-        .update({ refresh_token: null, last_error: 'Google bağlantısı koptu. Müsaitlik sayfasından tekrar bağla.' })
-        .eq('id', 1)
-      throw new HttpError(400, 'Google bağlantısı koptu. Müsaitlik sayfasından tekrar bağla.')
+      // Anahtar kalıcı olarak geçersiz (süresi dolmuş / izin geri alınmış) → bağlantıyı düşür, sebebini kaydet, yöneticiye haber ver
+      const reason = disconnectReason(integ, body.error_description || 'invalid_grant')
+      await sb.from('google_integration').update({ refresh_token: null, last_error: reason }).eq('id', 1)
+      await mailAdminsAboutDisconnect(sb, reason)
+      throw new HttpError(400, reason)
     }
     throw new HttpError(502, `Google erişim anahtarı alınamadı (${body.error ?? res.status}).`)
   }
@@ -251,7 +294,7 @@ export async function sync(sb: SupabaseClient, force: boolean): Promise<SyncResu
   const { data: locked } = await sb.rpc('google_try_lock', { p_seconds: 45 })
   if (!locked) return { connected: true, synced: false }
   try {
-    const token = await accessToken(sb, integ.refresh_token)
+    const token = await accessToken(sb, integ)
     const events = await reconcileAppointments(sb, token)
     await clearExternalBusy(sb)
     await sb.from('google_integration').update({ last_synced_at: new Date().toISOString(), last_error: null, sync_lock_until: null }).eq('id', 1)

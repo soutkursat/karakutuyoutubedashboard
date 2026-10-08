@@ -941,3 +941,5 @@ button.sidebar-user:hover, .umenu.open button.sidebar-user { background: rgba(25
   .modal-body { padding-left: 16px; padding-right: 16px; }
   .modal-head { padding-left: 16px; padding-right: 16px; }
 }
+.google-alert > span { flex: 1; min-width: 180px; }
+.google-alert > svg { flex-shrink: 0; }

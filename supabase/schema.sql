@@ -199,6 +199,8 @@ create table if not exists public.google_integration (
   sync_lock_until  timestamptz
 );
 insert into public.google_integration (id) values (1) on conflict (id) do nothing;
+-- v0.10: Google anahtarı süreliyse (uygulama "Testing" modunda → 7 gün) ne zaman biteceği
+alter table public.google_integration add column if not exists refresh_expires_at timestamptz;
 
 -- OAuth bağlantısı sırasında sahte istekleri engellemek için tek kullanımlık anahtarlar
 create table if not exists public.oauth_states (

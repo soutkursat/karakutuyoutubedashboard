@@ -49,25 +49,33 @@ export async function GET(request: Request): Promise<Response> {
         grant_type: 'authorization_code',
       }),
     })
-    const tok = (await res.json().catch(() => ({}))) as { refresh_token?: string; id_token?: string; scope?: string; error_description?: string }
+    const tok = (await res.json().catch(() => ({}))) as {
+      refresh_token?: string
+      /** Sadece süreli anahtarlarda gelir: Google uygulaması "Testing" modundaysa ≈7 gün */
+      refresh_token_expires_in?: number
+      id_token?: string
+      scope?: string
+      error_description?: string
+    }
     if (!res.ok) return back(request, { google: 'error', msg: tok.error_description ?? 'Google anahtarı alınamadı.' })
     if (!tok.scope?.includes('calendar.events')) {
       return back(request, { google: 'error', msg: 'Takvim izni verilmedi. Bağlanırken takvim kutucuğunu işaretle.' })
     }
     if (!tok.refresh_token) return back(request, { google: 'error', msg: 'Google kalıcı anahtar vermedi, tekrar dene.' })
 
-    await sb
-      .from('google_integration')
-      .update({
-        refresh_token: tok.refresh_token,
-        email: emailFromIdToken(tok.id_token),
-        connected_at: new Date().toISOString(),
-        last_error: null,
-        last_synced_at: null,
-      })
-      .eq('id', 1)
+    const row = {
+      refresh_token: tok.refresh_token,
+      email: emailFromIdToken(tok.id_token),
+      connected_at: new Date().toISOString(),
+      last_error: null,
+      last_synced_at: null,
+    }
+    const expiresAt = tok.refresh_token_expires_in ? new Date(Date.now() + tok.refresh_token_expires_in * 1000).toISOString() : null
+    const { error: upErr } = await sb.from('google_integration').update({ ...row, refresh_expires_at: expiresAt }).eq('id', 1)
+    // Şema henüz güncellenmediyse (refresh_expires_at yok) bağlantıyı yine de kaydet
+    if (upErr) await sb.from('google_integration').update(row).eq('id', 1)
     await sync(sb, true)
-    return back(request, { google: 'connected' })
+    return back(request, { google: expiresAt ? 'connected_testing' : 'connected' })
   } catch (e) {
     console.error(e)
     return back(request, { google: 'error', msg: e instanceof Error ? e.message : 'Bilinmeyen hata' })

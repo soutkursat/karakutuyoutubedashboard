@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { AdminApptList } from '../../components/AdminApptList'
 import { AnnouncementsCard } from '../../components/Announcements'
 import { Empty, PageHeader } from '../../components/Common'
+import { GoogleAlert } from '../../components/GoogleAlert'
 import { IconArrowRight, IconCalendar, IconClock, IconSparkle, IconUsers } from '../../components/Icons'
 import { currentUser, getAppointments, getStudents } from '../../lib/db'
 import { useDataVersion, useNow } from '../../lib/hooks'
@@ -35,6 +36,7 @@ export function AdminHome() {
         title={<>Hoş geldin, <span className="grad-text">{user.name}</span></>}
         desc="Randevularını, müsaitliğini ve öğrencilerini tek yerden yönet."
       />
+      <GoogleAlert />
       <div className="stats">
         {stats.map((s) => (
           <div key={s.label} className={s.hot ? 'stat glass hot' : 'stat glass'}>

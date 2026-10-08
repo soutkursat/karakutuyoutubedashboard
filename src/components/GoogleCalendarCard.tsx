@@ -4,7 +4,7 @@ import { IconCalendar, IconCheck, IconLink, IconVideo } from './Icons'
 import { useToast } from './Toast'
 import { getGoogleLoadError, getGoogleStatus, googleConnect, googleDisconnect, googleSyncNow, loadGoogleStatus } from '../lib/db'
 import { useDataVersion, useNow } from '../lib/hooks'
-import { relativeFromNow } from '../lib/time'
+import { formatDate, relativeFromNow } from '../lib/time'
 import { errMsg } from '../lib/ui'
 
 /** Yönetici: Google Takvim bağlantısı (randevuları otomatik Meet linkiyle takvime ekler; müsaitlik okunmaz) */
@@ -26,6 +26,7 @@ export function GoogleCalendarCard() {
     const r = params.get('google')
     if (!r) return
     if (r === 'connected') toast('Google Takvim bağlandı')
+    else if (r === 'connected_testing') toast('Google Takvim bağlandı, ama Google uygulaman Test modunda: bağlantı 7 gün sonra kopacak.', 'error')
     else toast(`Google bağlantısı başarısız: ${params.get('msg') ?? 'bilinmeyen hata'}`, 'error')
     params.delete('google')
     params.delete('msg')
@@ -96,6 +97,15 @@ export function GoogleCalendarCard() {
               </span>
             </div>
           </div>
+          {g.refreshExpiresAt && (
+            <div className="notice notice-warn">
+              <div>
+                <strong>Bu bağlantı {formatDate(g.refreshExpiresAt)} tarihinde kendiliğinden kopacak.</strong> Google uygulaman “Testing”
+                modunda olduğu için Google bağlantıyı 7 günde bir koparıyor. Kalıcı olması için: Google Cloud Console → Google Auth
+                Platform → Audience → <strong>Publish app</strong>, ardından burada “Bağlantıyı kaldır” deyip tekrar bağla.
+              </div>
+            </div>
+          )}
           {g.lastError && <div className="notice notice-warn">{g.lastError}</div>}
           <p className="muted small-text">
             Her randevu otomatik Meet linkiyle takvimine eklenir; onayladığında öğrenciye Google davet e-postası gider.
