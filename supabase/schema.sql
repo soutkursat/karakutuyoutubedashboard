@@ -160,6 +160,11 @@ create table if not exists public.announcements (
   created_by  uuid references public.profiles (id) on delete set null,
   created_at  timestamptz not null default now()
 );
+-- Kişiye özel pop-up (v0.9): doluysa duyuruyu sadece bu öğrenci görür (ör. "randevun ertelendi")
+alter table public.announcements add column if not exists target_user uuid references public.profiles (id) on delete cascade;
+create index if not exists announcements_target_idx on public.announcements (target_user);
+-- İsteğe bağlı panel içi bağlantı: pop-up'ta "git" butonu çıkar (sadece /panel/... yolları)
+alter table public.announcements add column if not exists link text check (link is null or link ~ '^/panel(/[a-z0-9-]+)*$');
 create table if not exists public.announcement_reads (
   announcement_id  uuid not null references public.announcements (id) on delete cascade,
   user_id          uuid not null default auth.uid() references public.profiles (id) on delete cascade,
@@ -616,7 +621,7 @@ create policy "kanal: kendin veya yönetici siler" on public.student_channels
 
 drop policy if exists "duyuru: aktifleri herkes, tümünü yönetici okur" on public.announcements;
 create policy "duyuru: aktifleri herkes, tümünü yönetici okur" on public.announcements
-  for select to authenticated using (active or public.is_admin());
+  for select to authenticated using ((active and (target_user is null or target_user = auth.uid())) or public.is_admin());
 drop policy if exists "duyuru: yönetici yazar" on public.announcements;
 create policy "duyuru: yönetici yazar" on public.announcements
   for all to authenticated using (public.is_admin()) with check (public.is_admin());

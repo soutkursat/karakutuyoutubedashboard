@@ -81,20 +81,29 @@ export function StudentHome() {
                   {next.rescheduleNote && <> · “{next.rescheduleNote}”</>}
                 </p>
               )}
-              {next.status === 'confirmed' && next.meetLink ? (
-                <a
-                  className={joinable ? 'btn btn-primary btn-lg' : 'btn btn-ghost btn-lg'}
-                  href={next.meetLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <IconVideo size={18} /> {joinable ? 'Görüşmeye katıl' : 'Meet linkini aç'}
-                </a>
-              ) : (
+              {!(next.status === 'confirmed' && next.meetLink) && (
                 <p className="fine">
-                  <IconVideo size={14} /> Google Meet linki randevun onaylanınca burada görünecek.
+                  <IconVideo size={14} />{' '}
+                  {next.status === 'confirmed'
+                    ? 'Google Meet linkin hazırlanıyor; görüşmeden önce burada görünecek.'
+                    : 'Google Meet linki randevun onaylanınca burada görünecek.'}
                 </p>
               )}
+              <div className="next-actions">
+                {next.status === 'confirmed' && next.meetLink && (
+                  <a
+                    className={joinable ? 'btn btn-primary btn-lg' : 'btn btn-ghost btn-lg'}
+                    href={next.meetLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <IconVideo size={18} /> {joinable ? 'Görüşmeye katıl' : 'Meet linkini aç'}
+                  </a>
+                )}
+                <Link className="btn btn-ghost btn-lg" to="/panel/randevularim">
+                  Randevu detayları <IconArrowRight size={18} />
+                </Link>
+              </div>
             </>
           ) : (
             <>

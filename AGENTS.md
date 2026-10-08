@@ -38,7 +38,8 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
   (öğrenci id'si) gelir; serbest adrese gönderim kapısı açma. Tek çağrıda en fazla 20 alıcı (Vercel süre sınırı).
   Randevu durumunu değiştiren yeni işlemlerde `notifyByEmail()` çağır (Ayarlar'daki `autoEmails`e uyar). E-posta hatası işlemi geri almaz.
 - Duyurular: `announcements` + `announcement_reads` tabloları; öğrenci tarafında `AnnouncementGate` (AppShell) bir kez gösterir,
-  kapatma 3 sn sonra açılır.
+  kapatma 3 sn sonra açılır. `target_user` doluysa kişiye özel bildirimdir (ör. erteleme pop-up'ı, `sendReschedulePopup`),
+  yönetici duyuru listesinde görünmez; `link` (sadece `/panel/...`) pop-up'a "git" butonu ekler.
 - Erteleme: `admin_reschedule_appointment` (SQL) → `rescheduled_from`, `reschedule_note`; Google etkinliği senkronda taşınır.
 - `api/` altında göreli importlar `.js` uzantısıyla yazılır (`./_lib/server.js`), yoksa Vercel'de çalışmaz.
   `api/` kendi `api/tsconfig.json`'unu kullanır (Node tipleri); Vercel en yakın tsconfig'i aldığı için bunu silme.

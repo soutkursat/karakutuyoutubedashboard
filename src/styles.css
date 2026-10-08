@@ -861,7 +861,9 @@ button.sidebar-user:hover, .umenu.open button.sidebar-user { background: rgba(25
 .resched-slots .slot strong { font-size: 17px; }
 .field-label .tag { margin-left: 8px; }
 .resched-info { font-size: 13.5px; color: var(--accent-text); padding: 8px 12px; border-left: 2px solid rgba(var(--accent-rgb), 0.6); background: rgba(var(--accent-rgb), 0.06); border-radius: 0 8px 8px 0; }
-.next-card .resched-info { margin-top: 12px; }
+.next-card .resched-info { margin: 0; }
+.next-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+@media (max-width: 640px) { .next-actions { width: 100%; } .next-actions .btn { flex: 1 1 100%; justify-content: center; } }
 .resched-hint > span { flex: 1; min-width: 180px; }
 @media (max-width: 640px) {
   .resched-days { grid-template-columns: repeat(4, 1fr); }

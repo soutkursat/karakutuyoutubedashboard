@@ -5,7 +5,7 @@ import { IconBan, IconCheck, IconClock, IconLink, IconVideo, IconWhatsapp } from
 import { Modal } from './Modal'
 import { RescheduleModal, type RescheduleChoice } from './RescheduleModal'
 import { useToast } from './Toast'
-import { getMailStatus, getSettings, getUser, loadMailStatus, notifyByEmail, rescheduleAppointment, setAppointmentStatus, setMeetLink, type ApptMailKind } from '../lib/db'
+import { getMailStatus, getSettings, getUser, loadMailStatus, notifyByEmail, rescheduleAppointment, sendReschedulePopup, setAppointmentStatus, setMeetLink, type ApptMailKind } from '../lib/db'
 import { formatDateLong, formatTime } from '../lib/time'
 import type { Appointment } from '../lib/types'
 import { errMsg } from '../lib/ui'
@@ -66,7 +66,11 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
       `Randevu ${formatTime(c.startIso)} saatine ertelendi`,
       c.sendEmail ? { id: a.id, kind: 'rescheduled', force: true } : undefined,
     )
-    if (ok) setReschedFor(null)
+    if (!ok) return
+    setReschedFor(null)
+    if (c.sendPopup) {
+      sendReschedulePopup(a, c.startIso, c.note).catch((e) => toast(`Öğrenciye pop-up gönderilemedi: ${errMsg(e)}`, 'error'))
+    }
   }
 
   return (

@@ -118,4 +118,8 @@ export interface Announcement {
   readCount: number
   /** Öğrenci için: ben gördüm mü */
   read: boolean
+  /** Doluysa kişiye özel (ör. erteleme bildirimi); yönetici duyuru listesinde gösterilmez */
+  targetUser: string | null
+  /** Pop-up'taki "git" butonu için panel içi yol (ör. /panel/randevularim) */
+  link: string | null
 }

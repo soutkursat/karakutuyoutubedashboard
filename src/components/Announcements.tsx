@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Empty, Field, Switch } from './Common'
 import { IconMegaphone, IconPlus, IconTrash } from './Icons'
 import { Modal } from './Modal'
@@ -44,10 +45,28 @@ export function AnnouncementGate() {
   const unread = getUnreadAnnouncements()
   const current = unread[0]
   if (!current) return null
-  return <AnnouncementPopup key={current.id} id={current.id} title={current.title} body={current.body} createdAt={current.createdAt} left={unread.length} />
+  return (
+    <AnnouncementPopup
+      key={current.id}
+      id={current.id}
+      title={current.title}
+      body={current.body}
+      createdAt={current.createdAt}
+      link={current.link}
+      left={unread.length}
+    />
+  )
 }
 
-function AnnouncementPopup({ id, title, body, createdAt, left }: { id: string; title: string; body: string; createdAt: string; left: number }) {
+/** Panel içi bağlantı → buton yazısı */
+const LINK_LABEL: Record<string, string> = {
+  '/panel/randevularim': 'Randevularıma git',
+  '/panel/randevu-al': 'Randevu al',
+  '/panel/profil': 'Profilime git',
+}
+
+function AnnouncementPopup({ id, title, body, createdAt, link, left }: { id: string; title: string; body: string; createdAt: string; link: string | null; left: number }) {
+  const navigate = useNavigate()
   const [wait, setWait] = useState(WAIT_SECONDS)
   useEffect(() => {
     if (wait <= 0) return
@@ -74,9 +93,27 @@ function AnnouncementPopup({ id, title, body, createdAt, left }: { id: string; t
       footer={
         <>
           {left > 1 && <span className="muted small-text ann-left">{left - 1} duyuru daha var</span>}
-          <button className="btn btn-primary" disabled={wait > 0} onClick={close} autoFocus={wait <= 0}>
-            {wait > 0 ? `Kapat (${wait})` : left > 1 ? 'Sonraki' : 'Tamam, anladım'}
-          </button>
+          {link ? (
+            <>
+              <button className="btn btn-ghost" disabled={wait > 0} onClick={close}>
+                {wait > 0 ? `Kapat (${wait})` : left > 1 ? 'Sonraki' : 'Kapat'}
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={wait > 0}
+                onClick={() => {
+                  close()
+                  navigate(link)
+                }}
+              >
+                {LINK_LABEL[link] ?? 'Göz at'}
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-primary" disabled={wait > 0} onClick={close} autoFocus={wait <= 0}>
+              {wait > 0 ? `Kapat (${wait})` : left > 1 ? 'Sonraki' : 'Tamam, anladım'}
+            </button>
+          )}
         </>
       }
     >

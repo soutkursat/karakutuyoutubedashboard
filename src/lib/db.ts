@@ -12,7 +12,7 @@ import { emit } from './storage'
 import { isConfigured, supabase } from './supabase'
 import type { Announcement, Appointment, AppointmentStatus, Busy, Channel, ContentFormat, Settings, User } from './types'
 import { AppError, EMAIL_RE, clean, isMeetLink, normalizePhone, normalizeChannelUrl } from './validation'
-import { dateKey, isValidDateKey, isValidTime, toMinutes } from './time'
+import { dateKey, formatDateLong, formatTime, isValidDateKey, isValidTime, toMinutes } from './time'
 
 export const DEFAULT_SETTINGS: Settings = {
   weekly: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
@@ -232,16 +232,22 @@ interface AnnouncementRow {
   body: string
   active: boolean
   created_at: string
+  target_user?: string | null
+  link?: string | null
 }
 
 /** Duyurular + kimin gördüğü. Şema güncel değilse panel yine açılsın diye hata yumuşak karşılanır. */
 async function loadAnnouncements(me: User): Promise<Announcement[]> {
-  const [an, reads] = await Promise.all([
-    supabase.from('announcements').select('id,title,body,active,created_at').order('created_at', { ascending: false }).limit(50).returns<AnnouncementRow[]>(),
+  // Şema henüz güncellenmediyse (target_user/link yok) eski sütunlarla devam et
+  const select = (cols: string) =>
+    supabase.from('announcements').select(cols).order('created_at', { ascending: false }).limit(100).returns<AnnouncementRow[]>()
+  const [anNew, reads] = await Promise.all([
+    select('id,title,body,active,created_at,target_user,link'),
     me.role === 'admin'
       ? supabase.from('announcement_reads').select('announcement_id').returns<{ announcement_id: string }[]>()
       : supabase.from('announcement_reads').select('announcement_id').eq('user_id', me.id).returns<{ announcement_id: string }[]>(),
   ])
+  const an = anNew.error ? await select('id,title,body,active,created_at') : anNew
   if (an.error || reads.error) {
     console.warn('Duyurular yüklenemedi (supabase/schema.sql tekrar çalıştırılmalı):', (an.error ?? reads.error)?.message)
     return []
@@ -256,6 +262,8 @@ async function loadAnnouncements(me: User): Promise<Announcement[]> {
     createdAt: r.created_at,
     readCount: counts.get(r.id) ?? 0,
     read: me.role === 'admin' || counts.has(r.id),
+    targetUser: r.target_user ?? null,
+    link: r.link ?? null,
   }))
 }
 
@@ -417,10 +425,16 @@ export const getAppointments = () => state.appts
 export const getBusy = () => state.busy
 export const getChannels = (studentId: string) => state.channels.filter((c) => c.studentId === studentId)
 export const getSettings = () => state.settings
-export const getAnnouncements = () => state.announcements
-/** Öğrencinin henüz görmediği aktif duyurular (eskiden yeniye) */
-export const getUnreadAnnouncements = () =>
-  state.me?.role === 'student' ? state.announcements.filter((a) => a.active && !a.read).reverse() : []
+/** Herkese açık duyurular (kişiye özel bildirimler hariç) */
+export const getAnnouncements = () => state.announcements.filter((a) => !a.targetUser)
+/** Öğrencinin henüz görmediği aktif duyurular + kişiye özel bildirimler (eskiden yeniye) */
+export const getUnreadAnnouncements = () => {
+  const me = state.me
+  if (me?.role !== 'student') return []
+  const list = state.announcements.filter((a) => a.active && !a.read && (!a.targetUser || a.targetUser === me.id)).reverse()
+  // Kişiye özel bildirimler (ör. erteleme) genel duyurulardan önce
+  return [...list.filter((a) => a.targetUser), ...list.filter((a) => !a.targetUser)]
+}
 export const getPublicConfig = () => state.publicConfig
 export const currentUser = () => state.me
 
@@ -764,6 +778,31 @@ export async function createAnnouncement(title: string, body: string) {
   if (b.length > 2000) throw new AppError('Mesaj en fazla 2000 karakter olabilir.')
   must(await supabase.from('announcements').insert({ title: t, body: b, created_by: state.me?.id }))
   await refresh()
+}
+
+/** Erteleme sonrası öğrenciye kişiye özel pop-up (öğrenci bir sonraki girişinde ya da hemen görür) */
+export async function sendReschedulePopup(appt: Appointment, newStartIso: string, note: string) {
+  const durMs = new Date(appt.end).getTime() - new Date(appt.start).getTime()
+  const newEnd = new Date(new Date(newStartIso).getTime() + durMs)
+  const n = clean(note, 300)
+  const body = [
+    'Mentörün randevunu yeni bir saate taşıdı.',
+    '',
+    `Yeni saat: ${formatDateLong(newStartIso)} · ${formatTime(newStartIso)} – ${formatTime(newEnd)}`,
+    `Önceki saat: ${formatDateLong(appt.start)} · ${formatTime(appt.start)}`,
+    ...(n ? ['', `Mentörünün notu: ${n}`] : []),
+    '',
+    'Yeni saat sana uymuyorsa WhatsApp’tan bize yazabilirsin.',
+  ].join('\n')
+  must(
+    await supabase.from('announcements').insert({
+      title: 'Randevun yeni bir saate taşındı',
+      body,
+      target_user: appt.studentId,
+      link: '/panel/randevularim',
+      created_by: state.me?.id,
+    }),
+  )
 }
 
 export async function setAnnouncementActive(id: string, active: boolean) {

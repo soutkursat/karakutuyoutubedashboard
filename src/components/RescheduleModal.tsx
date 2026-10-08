@@ -11,6 +11,8 @@ export interface RescheduleChoice {
   startIso: string
   note: string
   sendEmail: boolean
+  /** Öğrenciye kişiye özel pop-up (panele girince görür) */
+  sendPopup: boolean
 }
 
 /**
@@ -30,6 +32,7 @@ export function RescheduleModal({ appt, busy, onClose, onSubmit }: { appt: Appoi
   const [time, setTime] = useState('')
   const [note, setNote] = useState('')
   const [sendEmail, setSendEmail] = useState(settings.autoEmails)
+  const [sendPopup, setSendPopup] = useState(true)
 
   const free = day ? freeStartsOn(settings, day, getAppointments(), appt.id, duration, now) : []
   const startMs = day && isValidTime(time) ? toInstant(day, time).getTime() : NaN
@@ -55,7 +58,7 @@ export function RescheduleModal({ appt, busy, onClose, onSubmit }: { appt: Appoi
           <button
             className="btn btn-primary"
             disabled={busy || !canSave}
-            onClick={() => onSubmit(appt, { startIso: new Date(startMs).toISOString(), note, sendEmail })}
+            onClick={() => onSubmit(appt, { startIso: new Date(startMs).toISOString(), note, sendEmail, sendPopup })}
           >
             {busy ? 'Kaydediliyor…' : canSave ? `${formatTime(new Date(startMs))} saatine ertele` : 'Ertele'}
           </button>
@@ -134,12 +137,19 @@ export function RescheduleModal({ appt, busy, onClose, onSubmit }: { appt: Appoi
 
       <label className="toggle-row">
         <div>
+          <strong>Öğrenciye pop-up göster</strong>
+          <p className="muted">Panele girdiğinde yeni saati ve notunu bir kez görür.</p>
+        </div>
+        <Switch checked={sendPopup} label="Öğrenciye pop-up göster" onChange={setSendPopup} />
+      </label>
+
+      <label className="toggle-row">
+        <div>
           <strong>Öğrenciye e-posta gönder</strong>
           <p className="muted">{mail && !mail.systemReady ? 'E-posta ayarları yapılmamış (Ayarlar → E-posta).' : 'Yeni saat ve notun sistem adresinden gider.'}</p>
         </div>
         <Switch checked={sendEmail} label="Öğrenciye e-posta gönder" onChange={setSendEmail} />
       </label>
-
     </Modal>
   )
 }

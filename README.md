@@ -107,7 +107,8 @@ npm run dev                  # http://localhost:5173
 
 **Yönetim paneli** (sadece `kursatyoutube`)
 - Genel bakış: bugün, onay bekleyen, 7 gün, öğrenci sayısı
-- Randevular: filtre + arama, onayla, **ertele** (gün + saat seç, boş saatler önerilir, öğrenciye not),
+- Randevular: filtre + arama, onayla, **ertele** (gün + saat seç, boş saatler önerilir, öğrenciye not,
+  öğrenciye pop-up + e-posta ile bildirim),
   Meet linki ekle, tamamlandı, iptal/geri al (iptal penceresinde "Bunun yerine ertele"), öğrenciye WhatsApp'tan yaz
 - E-posta: onay / erteleme / iptalde öğrenciye otomatik e-posta (Ayarlar'dan açılıp kapanır); Öğrenciler sayfasından
   listedeki tüm öğrencilere ya da tek öğrenciye e-posta (her öğrenciye ayrı gider)
