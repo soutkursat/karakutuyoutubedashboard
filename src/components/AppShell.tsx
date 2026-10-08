@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { AnnouncementGate } from './Announcements'
 import { Brand } from './Brand'
 import { IconMenu, IconX } from './Icons'
@@ -19,12 +19,19 @@ export function AppShell({ user, nav, area }: { user: User; nav: NavItem[]; area
   const [open, setOpen] = useState(false)
   const loc = useLocation()
   useEffect(() => setOpen(false), [loc.pathname])
+  // Logo + site adı → Genel Bakış (menüdeki ilk sayfa)
+  const home = nav[0]?.to ?? '/'
+  const brand = (
+    <Link to={home} className="brand-link" aria-label="Genel Bakış'a git">
+      <Brand sub={area} />
+    </Link>
+  )
 
   return (
     <div className="shell">
       <aside className={cx('sidebar glass', open && 'open')}>
         <div className="sidebar-top">
-          <Brand sub={area} />
+          {brand}
           <button className="icon-btn only-mobile" onClick={() => setOpen(false)} aria-label="Menüyü kapat">
             <IconX />
           </button>
@@ -47,7 +54,7 @@ export function AppShell({ user, nav, area }: { user: User; nav: NavItem[]; area
           <button className="icon-btn" onClick={() => setOpen(true)} aria-label="Menüyü aç">
             <IconMenu />
           </button>
-          <Brand sub={area} />
+          {brand}
           <UserMenu user={user} variant="topbar" />
         </div>
         <main className="content">

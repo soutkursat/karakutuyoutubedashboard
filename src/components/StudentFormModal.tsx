@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Field, PasswordInput, Switch } from './Common'
+import { DateInput, Field, PasswordInput, Switch } from './Common'
 import { IconClock, IconPlus, IconTrash, IconVideo } from './Icons'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
@@ -7,7 +7,7 @@ import { adminCreateStudent, adminResetQuota, adminUpdateStudent, getAppointment
 import { computeQuota, formatRemaining } from '../lib/quota'
 import { dateKey } from '../lib/time'
 import type { User } from '../lib/types'
-import { cx, errMsg } from '../lib/ui'
+import { canAutoFocus, cx, errMsg } from '../lib/ui'
 import { formatPhone } from '../lib/validation'
 
 const newChannel = () => ({ url: '', monetized: false, startedOn: '' })
@@ -99,7 +99,7 @@ export function StudentFormModal({ user, onClose }: { user: User | 'new'; onClos
           <h4 className="sf-h"><span>1</span> Kişisel bilgiler</h4>
           <div className="form">
             <Field label="Ad soyad">
-              <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} autoFocus={isNew} />
+              <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} autoFocus={isNew && canAutoFocus()} />
             </Field>
             <div className="grid-2">
               <Field label="E-posta">
@@ -147,7 +147,7 @@ export function StudentFormModal({ user, onClose }: { user: User | 'new'; onClos
                   </div>
                   <label className="sf-date">
                     <span>Başlangıç</span>
-                    <input className="input" type="date" min="2005-01-01" max={dateKey()} value={c.startedOn} onChange={(e) => setCh(i, { startedOn: e.target.value })} />
+                    <DateInput min="2005-01-01" max={dateKey()} value={c.startedOn} onChange={(v) => setCh(i, { startedOn: v })} />
                   </label>
                 </div>
               </div>

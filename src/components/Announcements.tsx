@@ -15,7 +15,7 @@ import {
 } from '../lib/db'
 import { useDataVersion, useNow } from '../lib/hooks'
 import { formatDayMonth, formatTime, relativeFromNow } from '../lib/time'
-import { cx, errMsg } from '../lib/ui'
+import { canAutoFocus, cx, errMsg } from '../lib/ui'
 
 /** Kapat butonunun aktif olması için beklenecek süre (sn) */
 const WAIT_SECONDS = 3
@@ -226,7 +226,7 @@ export function AnnouncementsCard() {
         }
       >
         <Field label="Başlık">
-          <input className="input" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Ör. Bu hafta görüşmeler Perşembe’ye kaydı" autoFocus />
+          <input className="input" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Ör. Bu hafta görüşmeler Perşembe’ye kaydı" autoFocus={canAutoFocus()} />
         </Field>
         <Field label="Mesaj" hint={`Linkler tıklanabilir olur. ${body.length}/2000`}>
           <textarea className="input" rows={6} maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} />

@@ -525,7 +525,7 @@ function validateChannel(input: ChannelInput) {
   if (!url) throw new AppError('Geçerli bir YouTube kanal linki gir (ör. https://www.youtube.com/@kanaladi).')
   const startedOn = input.startedOn || null
   if (startedOn) {
-    if (!isValidDateKey(startedOn)) throw new AppError('Başlangıç tarihi geçersiz.')
+    if (!isValidDateKey(startedOn)) throw new AppError('Kanal tarihini GG.AA.YYYY biçiminde gir (ör. 01.03.2024).')
     if (startedOn < '2005-01-01' || startedOn > dateKey()) {
       throw new AppError('Başlangıç tarihi bugünden ileri ya da 2005’ten önce olamaz.')
     }

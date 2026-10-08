@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Empty, Field } from './Common'
+import { DateInput, Empty, Field } from './Common'
 import { IconChevronRight, IconEdit, IconPlus, IconTrash, IconVideo } from './Icons'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
@@ -7,7 +7,7 @@ import { addChannel, deleteChannel, getChannels, updateChannel, type ChannelDeta
 import { useDataVersion } from '../lib/hooks'
 import { WEEKDAYS_SHORT, dateKey, durationSince, formatMonthYear } from '../lib/time'
 import type { Channel, ContentFormat } from '../lib/types'
-import { cx, errMsg } from '../lib/ui'
+import { canAutoFocus, cx, errMsg } from '../lib/ui'
 import { channelLabel } from '../lib/validation'
 
 const EMPTY: ChannelInput = { url: '', monetized: false, startedOn: '' }
@@ -198,7 +198,7 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
               value={form.url}
               onChange={(e) => setForm({ ...form, url: e.target.value })}
               placeholder="https://www.youtube.com/@kanaladi"
-              autoFocus
+              autoFocus={canAutoFocus()}
             />
           </Field>
           <Field label="Para kazanma (YPP)">
@@ -213,16 +213,9 @@ export function ChannelsCard({ studentId }: { studentId: string }) {
           </Field>
           <Field
             label="Kanalı açtığın tarih"
-            hint={<><strong>Eski bir kanal kullanıyorsan</strong>, aktif olarak içerik üretmeye başladığın tarihi yaz. Günü tam hatırlamıyorsan ayın 1’ini seçebilirsin.</>}
+            hint={<><strong>Eski bir kanal kullanıyorsan</strong>, aktif olarak içerik üretmeye başladığın tarihi yaz. Günü tam hatırlamıyorsan ayın 1’ini yazabilirsin (ör. 01.03.2024).</>}
           >
-            <input
-              className="input"
-              type="date"
-              min="2005-01-01"
-              max={dateKey()}
-              value={form.startedOn}
-              onChange={(e) => setForm({ ...form, startedOn: e.target.value })}
-            />
+            <DateInput min="2005-01-01" max={dateKey()} value={form.startedOn} onChange={(v) => setForm({ ...form, startedOn: v })} />
           </Field>
 
           <div className="ch-more">

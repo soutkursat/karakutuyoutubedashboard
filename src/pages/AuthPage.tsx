@@ -7,7 +7,7 @@ import { homeFor } from '../components/Guard'
 import { currentUser, getPublicConfig, isReady, login, register } from '../lib/db'
 import { Loader } from '../components/Screens'
 import { useDataVersion } from '../lib/hooks'
-import { cx, errMsg } from '../lib/ui'
+import { canAutoFocus, cx, errMsg } from '../lib/ui'
 
 type Tab = 'login' | 'register'
 
@@ -102,7 +102,7 @@ export function AuthPage() {
             {tab === 'login' ? (
               <>
                 <Field label="E-posta veya kullanıcı adı">
-                  <input className="input" autoComplete="username" value={f.id} onChange={set('id')} placeholder="ornek@gmail.com" autoFocus />
+                  <input className="input" autoComplete="username" value={f.id} onChange={set('id')} placeholder="ornek@gmail.com" autoFocus={canAutoFocus()} />
                 </Field>
                 <Field label="Şifre">
                   <PasswordInput autoComplete="current-password" value={f.password} onChange={set('password')} placeholder="••••••" />

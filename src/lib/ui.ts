@@ -23,3 +23,9 @@ export function initials(name: string) {
 export function errMsg(e: unknown) {
   return e instanceof Error ? e.message : 'Beklenmeyen bir hata oluştu.'
 }
+
+/**
+ * Otomatik odak sadece fare/klavyeli cihazlarda: telefonda bir pencere açılır açılmaz
+ * yazı kutusuna odaklanmak klavyeyi açıp ekranın yarısını kapatıyor.
+ */
+export const canAutoFocus = () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches

@@ -8,7 +8,7 @@ import { useToast } from './Toast'
 import { getMailStatus, getSettings, getUser, loadMailStatus, notifyByEmail, rescheduleAppointment, sendReschedulePopup, setAppointmentStatus, setMeetLink, type ApptMailKind } from '../lib/db'
 import { formatDateLong, formatTime } from '../lib/time'
 import type { Appointment } from '../lib/types'
-import { errMsg } from '../lib/ui'
+import { canAutoFocus, errMsg } from '../lib/ui'
 import { formatPhone } from '../lib/validation'
 import { openWhatsapp, toStudentMessage, waLink } from '../lib/whatsapp'
 
@@ -192,7 +192,7 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
           adresini aç, linki kopyalayıp buraya yapıştır. Bekleyen randevu otomatik onaylanır.
         </p>
         <Field label="Meet linki">
-          <input className="input" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://meet.google.com/abc-defg-hij" autoFocus />
+          <input className="input" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://meet.google.com/abc-defg-hij" autoFocus={canAutoFocus()} />
         </Field>
       </Modal>
 
