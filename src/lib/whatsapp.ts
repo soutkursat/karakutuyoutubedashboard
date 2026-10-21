@@ -69,6 +69,23 @@ export function toStudentMessage(a: Appointment, student: User) {
   )
 }
 
+/** Öğrenci → Mentör: ertelenen randevu için kendi saat önerisi */
+export function proposeMessage(a: Appointment, student: User) {
+  return lines(
+    '*KARA KUTU YOUTUBE AKADEMİSİ*',
+    '*Yeni Saat Önerisi*',
+    '',
+    'Merhaba, ertelenen randevum için yeni bir saat önerdim.',
+    '',
+    `*Ad Soyad:* ${student.name}`,
+    `*Önerdiğim tarih:* ${formatDateLong(a.start)}`,
+    `*Saat:* ${formatTime(a.start)} - ${formatTime(a.end)} (TR saati)`,
+    a.rescheduledFrom ? `*İlk randevu saati:* ${formatDateLong(a.rescheduledFrom)} - ${formatTime(a.rescheduledFrom)}` : null,
+    '',
+    `*Randevu No:* ${a.code}`,
+  )
+}
+
 /** Öğrenci → Mentör: bekleme sürecinde soru sormak için hazır başlangıç */
 export function questionMessage(student: User) {
   return lines('*KARA KUTU YOUTUBE AKADEMİSİ*', '', `Merhaba, ben ${student.name}. Bir sorum var:`, '')

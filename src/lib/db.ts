@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS: Settings = {
   introBookings: 4,
   introGapDays: 7,
   regularGapDays: 14,
+  proposalWeekdayStart: '18:30',
+  proposalWeekdayEnd: '20:30',
   cancelLimitHours: 6,
   whatsappNumber: '905377935090',
   defaultMeetLink: '',
@@ -99,6 +101,7 @@ interface ApptRow {
   cancelled_by: 'student' | 'admin' | null
   rescheduled_from?: string | null
   reschedule_note?: string | null
+  student_proposed_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -167,6 +170,7 @@ const toAppt = (r: ApptRow): Appointment => ({
   cancelledBy: r.cancelled_by ?? undefined,
   rescheduledFrom: r.rescheduled_from ? iso(r.rescheduled_from) : undefined,
   rescheduleNote: r.reschedule_note ?? undefined,
+  studentProposedAt: r.student_proposed_at ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -632,6 +636,22 @@ export function canStudentCancel(a: Appointment, now = Date.now()) {
   )
 }
 
+/** Öğrenci, mentörün ertelediği randevuya kendi saatini önerebilir mi (her ertelemeden sonra bir kez) */
+export function canProposeTime(a: Appointment, now = Date.now()) {
+  return (a.status === 'pending' || a.status === 'confirmed') && !!a.rescheduledFrom && !a.studentProposedAt && new Date(a.end).getTime() > now
+}
+
+/** Öğrencinin saat önerisi: randevu yeni saate taşınır ve tekrar "onay bekliyor" olur (kurallar SQL'de) */
+export async function proposeTime(apptId: string, startIso: string): Promise<Appointment> {
+  try {
+    const row = must(await supabase.rpc('propose_my_time', { p_id: apptId, p_start: startIso }).single<ApptRow>())
+    kickSync(true)
+    return toAppt(row)
+  } finally {
+    await refresh()
+  }
+}
+
 export async function cancelByStudent(_studentId: string, apptId: string, reason: string): Promise<Appointment> {
   const row = must(await supabase.rpc('cancel_my_appointment', { p_id: apptId, p_reason: clean(reason, 300) }).single<ApptRow>())
   await refresh()
@@ -792,7 +812,7 @@ export async function sendReschedulePopup(appt: Appointment, newStartIso: string
     `Önceki saat: ${formatDateLong(appt.start)} · ${formatTime(appt.start)}`,
     ...(n ? ['', `Mentörünün notu: ${n}`] : []),
     '',
-    'Yeni saat sana uymuyorsa WhatsApp’tan bize yazabilirsin.',
+    'Yeni saat sana uymuyorsa Randevularım sayfasında “Saat belirle” ile kendi saatini önerebilirsin.',
   ].join('\n')
   must(
     await supabase.from('announcements').insert({
@@ -1049,6 +1069,10 @@ export async function saveSettings(next: Settings) {
   num(next.introBookings, 0, 20, 'Yeni üye randevu hakkı')
   num(next.introGapDays, 0, 60, 'Yeni üye randevu aralığı')
   num(next.regularGapDays, 0, 90, 'Randevu aralığı')
+  if (!isValidTime(next.proposalWeekdayStart) || !isValidTime(next.proposalWeekdayEnd)) throw new AppError('Saat önerisi aralığı SS:DD biçiminde olmalı.')
+  if (toMinutes(next.proposalWeekdayEnd) - toMinutes(next.proposalWeekdayStart) < next.slotMinutes) {
+    throw new AppError(`Öğrencinin saat önerisi aralığı en az bir görüşme süresi (${next.slotMinutes} dk) olmalı.`)
+  }
   num(next.cancelLimitHours, 0, 168, 'İptal limiti')
   const wa = normalizePhone(next.whatsappNumber)
   if (!wa) throw new AppError('WhatsApp numarası geçersiz.')

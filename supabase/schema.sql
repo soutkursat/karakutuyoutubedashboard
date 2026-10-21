@@ -148,6 +148,8 @@ alter table public.appointments add column if not exists google_synced_status te
 -- Erteleme (v0.8): bir önceki saat ve mentörün notu
 alter table public.appointments add column if not exists rescheduled_from timestamptz;
 alter table public.appointments add column if not exists reschedule_note text;
+-- Öğrencinin saat önerisi (v0.11): ertelenen randevuda öğrenci bir kez kendi saatini önerebilir
+alter table public.appointments add column if not exists student_proposed_at timestamptz;
 
 -- ---------------------------------------------------------------------
 -- DUYURULAR (v0.8): yöneticinin tüm öğrencilere pop-up mesajı; her öğrenci bir kez görür
@@ -556,10 +558,70 @@ begin
       end_at = p_start + (a.end_at - a.start_at),
       status = 'confirmed',
       reschedule_note = nullif(left(trim(coalesce(p_note, '')), 300), ''),
+      student_proposed_at = null, -- yeni ertelemeden sonra öğrenci tekrar saat önerebilir
       google_synced_status = null
     where id = p_id returning * into result;
   exception when exclusion_violation then
     raise exception 'Bu saatte başka bir randevu var. Farklı bir saat seç.';
+  end;
+  return result;
+end $$;
+
+-- Öğrenci, mentörün ertelediği randevuya uymuyorsa kendi saatini önerir (her ertelemeden sonra bir kez).
+-- Kural: hafta içi sadece proposalWeekdayStart–proposalWeekdayEnd arası (varsayılan 18:30–20:30, görüşmenin tamamı),
+-- hafta sonu her saat. Randevu yeni saate taşınır ve tekrar "onay bekliyor" olur; mentör onaylar ya da yeniden erteler.
+create or replace function public.propose_my_time(p_id uuid, p_start timestamptz)
+returns public.appointments
+language plpgsql security definer set search_path = public as $$
+declare
+  a appointments; s jsonb; result appointments;
+  dur interval; loc timestamp; loc_end timestamp; mins int; mins_end int;
+  w_start int; w_end int; dkey date;
+begin
+  select * into a from appointments where id = p_id and student_id = auth.uid() for update;
+  if a.id is null then raise exception 'Randevu bulunamadı.'; end if;
+  if a.status not in ('pending', 'confirmed') then raise exception 'Bu randevu için saat önerilemez.'; end if;
+  if a.rescheduled_from is null then raise exception 'Saat önerisi sadece mentörünün ertelediği randevularda yapılabilir.'; end if;
+  if a.student_proposed_at is not null then raise exception 'Bu randevu için zaten bir saat önerdin. Mentörünün cevabını bekle.'; end if;
+  if p_start is null then raise exception 'Tarih ve saat seç.'; end if;
+
+  select data into s from app_settings where id = 1;
+  dur := a.end_at - a.start_at;
+  loc := p_start at time zone 'Europe/Istanbul';
+  loc_end := (p_start + dur) at time zone 'Europe/Istanbul';
+  dkey := loc::date;
+
+  if p_start < now() + make_interval(hours => coalesce((s ->> 'minNoticeHours')::int, 12)) then
+    raise exception 'En az % saat sonrası için saat önerebilirsin.', coalesce((s ->> 'minNoticeHours')::int, 12);
+  end if;
+  if dkey > (now() at time zone 'Europe/Istanbul')::date + coalesce((s ->> 'maxDaysAhead')::int, 21) then
+    raise exception 'En fazla % gün sonrası için saat önerebilirsin.', coalesce((s ->> 'maxDaysAhead')::int, 21);
+  end if;
+  if (s -> 'blockedDates') ? to_char(dkey, 'YYYY-MM-DD') then raise exception 'Mentörün bu gün müsait değil, başka bir gün seç.'; end if;
+  if extract(second from loc) <> 0 or extract(minute from loc)::int % 5 <> 0 then raise exception 'Saati 5 dakikalık aralıklarla seç (ör. 18:30, 18:35).'; end if;
+  if p_start = a.start_at then raise exception 'Bu zaten randevunun şu anki saati.'; end if;
+
+  if extract(isodow from loc) between 1 and 5 then
+    w_start := _hhmm_to_min(coalesce(s ->> 'proposalWeekdayStart', '18:30'));
+    w_end := _hhmm_to_min(coalesce(s ->> 'proposalWeekdayEnd', '20:30'));
+    mins := extract(hour from loc)::int * 60 + extract(minute from loc)::int;
+    mins_end := mins + (extract(epoch from dur) / 60)::int;
+    if loc_end::date <> dkey or mins < w_start or mins_end > w_end then
+      raise exception 'Hafta içi sadece % – % arası saat önerebilirsin (görüşme bu aralıkta bitmeli).',
+        coalesce(s ->> 'proposalWeekdayStart', '18:30'), coalesce(s ->> 'proposalWeekdayEnd', '20:30');
+    end if;
+  end if;
+
+  begin
+    update appointments set
+      start_at = p_start,
+      end_at = p_start + dur,
+      status = 'pending',
+      student_proposed_at = now(),
+      google_synced_status = null
+    where id = p_id returning * into result;
+  exception when exclusion_violation then
+    raise exception 'Bu saat dolu. Başka bir saat seç.';
   end;
   return result;
 end $$;
@@ -661,6 +723,7 @@ revoke execute on function public.update_my_profile(text, text, boolean) from pu
 revoke execute on function public.admin_set_appointment_status(uuid, text, text) from public, anon;
 revoke execute on function public.admin_set_user_status(uuid, text) from public, anon;
 revoke execute on function public.admin_reschedule_appointment(uuid, timestamptz, text) from public, anon;
+revoke execute on function public.propose_my_time(uuid, timestamptz) from public, anon;
 revoke execute on function public.busy_slots(timestamptz, timestamptz) from public, anon;
 grant execute on function public.book_appointment(timestamptz, text, text) to authenticated;
 grant execute on function public.cancel_my_appointment(uuid, text) to authenticated;
@@ -669,6 +732,7 @@ grant execute on function public.update_my_profile(text, text, boolean) to authe
 grant execute on function public.admin_set_appointment_status(uuid, text, text) to authenticated;
 grant execute on function public.admin_set_user_status(uuid, text) to authenticated;
 grant execute on function public.admin_reschedule_appointment(uuid, timestamptz, text) to authenticated;
+grant execute on function public.propose_my_time(uuid, timestamptz) to authenticated;
 grant execute on function public.busy_slots(timestamptz, timestamptz) to authenticated;
 revoke execute on function public.replace_external_busy(jsonb) from public, anon, authenticated;
 revoke execute on function public.google_try_lock(int) from public, anon, authenticated;

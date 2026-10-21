@@ -193,7 +193,7 @@ export function appointmentEmail(kind: ApptMailKind, a: ApptForMail, name: strin
           a.rescheduled_from
             ? `${fDate(a.rescheduled_from)} ${fTime(a.rescheduled_from)} tarihindeki randevun mentörün tarafından aşağıdaki yeni saate taşındı.`
             : 'Randevun mentörün tarafından aşağıdaki yeni saate taşındı.',
-          'Yeni saat sana uymuyorsa WhatsApp’tan bize yazman yeterli.',
+          'Yeni saat sana uymuyorsa panelde Randevularım sayfasındaki “Saat belirle” butonuyla kendi saatini önerebilirsin.',
         ],
         rows: [...rows, ['Google Meet', meet]],
         note: a.reschedule_note ? { label: 'Mentörünün notu', text: a.reschedule_note } : undefined,

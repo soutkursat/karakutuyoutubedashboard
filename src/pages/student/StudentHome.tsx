@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '../../components/Common'
+import { ProposeTimeModal } from '../../components/ProposeTimeModal'
 import { IconArrowRight, IconCalendar, IconCalendarPlus, IconCheck, IconClock, IconVideo, IconWhatsapp } from '../../components/Icons'
-import { currentUser, getAppointments, getChannels, getSettings, markWhatsappNotified } from '../../lib/db'
+import { canProposeTime, currentUser, getAppointments, getChannels, getSettings, markWhatsappNotified } from '../../lib/db'
 import { computeQuota, formatRemaining } from '../../lib/quota'
 import { useDataVersion, useNow } from '../../lib/hooks'
 import { formatDateLong, formatTime, relativeFromNow } from '../../lib/time'
@@ -22,6 +24,7 @@ export function StudentHome() {
   const unnotified = upcoming.filter((a) => !a.whatsappNotifiedAt)
   const quota = computeQuota(user, getAppointments(), settings, now)
   const missing = [!user.phone && 'WhatsApp numaran', getChannels(user.id).length === 0 && 'YouTube kanal linkin'].filter(Boolean)
+  const [proposing, setProposing] = useState(false)
   const joinable = next?.meetLink && next.status === 'confirmed' && new Date(next.start).getTime() - now < 15 * 60000
 
   return (
@@ -77,8 +80,15 @@ export function StudentHome() {
               </div>
               {next.rescheduledFrom && (
                 <p className="resched-info">
-                  Mentörün bu randevuyu yeni saate taşıdı (önceki: {formatDateLong(next.rescheduledFrom)} {formatTime(next.rescheduledFrom)})
-                  {next.rescheduleNote && <> · “{next.rescheduleNote}”</>}
+                  {next.studentProposedAt && next.status === 'pending' ? (
+                    'Önerdiğin saat mentörünün onayını bekliyor.'
+                  ) : (
+                    <>
+                      Mentörün bu randevuyu yeni saate taşıdı (önceki: {formatDateLong(next.rescheduledFrom)} {formatTime(next.rescheduledFrom)})
+                      {next.rescheduleNote && <> · “{next.rescheduleNote}”</>}
+                      {canProposeTime(next, now) && <> · Uymuyorsa “Saat belirle” ile kendi saatini önerebilirsin.</>}
+                    </>
+                  )}
                 </p>
               )}
               {!(next.status === 'confirmed' && next.meetLink) && (
@@ -100,10 +110,16 @@ export function StudentHome() {
                     <IconVideo size={18} /> {joinable ? 'Görüşmeye katıl' : 'Meet linkini aç'}
                   </a>
                 )}
+                {canProposeTime(next, now) && (
+                  <button className="btn btn-ghost btn-lg" onClick={() => setProposing(true)}>
+                    <IconClock size={18} /> Saat belirle
+                  </button>
+                )}
                 <Link className="btn btn-ghost btn-lg" to="/panel/randevularim">
                   Randevu detayları <IconArrowRight size={18} />
                 </Link>
               </div>
+              {proposing && <ProposeTimeModal key={next.id} appt={next} onClose={() => setProposing(false)} />}
             </>
           ) : (
             <>

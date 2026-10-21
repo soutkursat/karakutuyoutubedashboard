@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom'
 import { ApptCard } from '../../components/ApptCard'
 import { AskWhatsappButton } from '../../components/AskWhatsapp'
 import { Empty, Field, PageHeader } from '../../components/Common'
-import { IconCalendar, IconCalendarPlus, IconVideo, IconWhatsapp, IconX } from '../../components/Icons'
+import { IconCalendar, IconCalendarPlus, IconClock, IconVideo, IconWhatsapp, IconX } from '../../components/Icons'
 import { Modal } from '../../components/Modal'
+import { ProposeTimeModal } from '../../components/ProposeTimeModal'
 import { useToast } from '../../components/Toast'
-import { canStudentCancel, cancelByStudent, currentUser, getAppointments, getSettings, markWhatsappNotified } from '../../lib/db'
+import { canProposeTime, canStudentCancel, cancelByStudent, currentUser, getAppointments, getSettings, markWhatsappNotified } from '../../lib/db'
 import { useDataVersion, useNow } from '../../lib/hooks'
 import { formatDateLong, formatTime } from '../../lib/time'
 import type { Appointment } from '../../lib/types'
@@ -25,6 +26,7 @@ export function MyAppointments() {
   const [cancelling, setCancelling] = useState<Appointment | null>(null)
   const [reason, setReason] = useState('')
   const [cancelled, setCancelled] = useState<Appointment | null>(null)
+  const [proposing, setProposing] = useState<Appointment | null>(null)
 
   const mine = getAppointments().filter((a) => a.studentId === user.id)
   const isActive = (a: Appointment) => a.status === 'pending' || a.status === 'confirmed'
@@ -94,8 +96,10 @@ export function MyAppointments() {
                 <>
                   {a.rescheduledFrom && a.status !== 'cancelled' && (
                     <p className="resched-info">
-                      Ertelendi · önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}
-                      {a.rescheduleNote && <> · “{a.rescheduleNote}”</>}
+                      {a.studentProposedAt && a.status === 'pending'
+                        ? 'Önerdiğin saat mentörünün onayını bekliyor'
+                        : <>Ertelendi · önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}</>}
+                      {a.rescheduleNote && !(a.studentProposedAt && a.status === 'pending') && <> · “{a.rescheduleNote}”</>}
                     </p>
                   )}
                   {a.cancelReason && <p className="appt-note">Sebep: {a.cancelReason}</p>}
@@ -108,6 +112,11 @@ export function MyAppointments() {
                       <a className="btn btn-primary btn-sm" href={a.meetLink} target="_blank" rel="noopener noreferrer">
                         <IconVideo size={16} /> Meet’e katıl
                       </a>
+                    )}
+                    {canProposeTime(a, now) && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => setProposing(a)} title="Ertelenen saat uymuyorsa kendi saatini öner">
+                        <IconClock size={16} /> Saat belirle
+                      </button>
                     )}
                     <button
                       className={cx('btn btn-sm', a.whatsappNotifiedAt ? 'btn-ghost' : 'btn-wa')}
@@ -150,6 +159,8 @@ export function MyAppointments() {
           <textarea className="input" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       </Modal>
+
+      {proposing && <ProposeTimeModal key={proposing.id} appt={proposing} onClose={() => setProposing(null)} />}
 
       <Modal open={!!cancelled} onClose={() => setCancelled(null)} title="Randevu iptal edildi" size="sm">
         <p className="muted">İptal bilgisini WhatsApp’tan bize de iletmek ister misin?</p>

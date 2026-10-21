@@ -42,6 +42,8 @@ export interface Appointment {
   rescheduledFrom?: string
   /** Erteleme notu (öğrenci görür) */
   rescheduleNote?: string
+  /** Öğrenci ertelemeye karşı kendi saatini önerdiyse ne zaman (her ertelemeden sonra bir kez) */
+  studentProposedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -66,6 +68,9 @@ export interface Settings {
   introGapDays: number
   /** Sonrasında iki randevu arası gün (varsayılan 14) */
   regularGapDays: number
+  /** Ertelenen randevuda öğrencinin hafta içi önerebileceği saat aralığı (hafta sonu serbest) */
+  proposalWeekdayStart: string
+  proposalWeekdayEnd: string
   cancelLimitHours: number
   whatsappNumber: string
   defaultMeetLink: string

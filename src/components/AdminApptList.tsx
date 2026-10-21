@@ -104,10 +104,17 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                     </p>
                   )}
                   {a.rescheduledFrom && active && (
-                    <p className="appt-note">
-                      Ertelendi · önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}
-                      {a.rescheduleNote ? ` · “${a.rescheduleNote}”` : ''}
-                    </p>
+                    a.studentProposedAt && a.status === 'pending' ? (
+                      <p className="resched-info">
+                        Öğrenci bu saati önerdi (ertelemeden önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}). Onayla ya da tekrar ertele.
+                      </p>
+                    ) : (
+                      <p className="appt-note">
+                        Ertelendi · önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}
+                        {a.rescheduleNote ? ` · “${a.rescheduleNote}”` : ''}
+                        {a.studentProposedAt ? ' · saati öğrenci önerdi' : ''}
+                      </p>
+                    )
                   )}
                   {a.cancelReason && <p className="appt-note">İptal ({a.cancelledBy === 'admin' ? 'yönetici' : 'öğrenci'}): {a.cancelReason}</p>}
                 </>

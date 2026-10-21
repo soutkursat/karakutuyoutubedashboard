@@ -191,6 +191,22 @@ export function AdminAvailability() {
           </section>
 
           <section className="card glass">
+            <h3 className="card-title">Öğrencinin saat önerisi</h3>
+            <p className="muted small-text">
+              Bir randevuyu ertelediğinde, saat öğrenciye uymuyorsa “Saat belirle” ile bir kez kendi saatini önerebilir.
+              Hafta içi sadece bu aralıkta (görüşme aralık içinde bitmeli), hafta sonu her saat. Öneri “onay bekliyor” olarak düşer.
+            </p>
+            <div className="grid-2">
+              <Field label="Hafta içi başlangıç">
+                <input className="input" type="time" step={300} value={s.proposalWeekdayStart} onChange={(e) => update((d) => (d.proposalWeekdayStart = e.target.value))} />
+              </Field>
+              <Field label="Hafta içi bitiş">
+                <input className="input" type="time" step={300} value={s.proposalWeekdayEnd} onChange={(e) => update((d) => (d.proposalWeekdayEnd = e.target.value))} />
+              </Field>
+            </div>
+          </section>
+
+          <section className="card glass">
             <h3 className="card-title">Kapalı günler</h3>
             <p className="muted small-text">Tatil, seyahat gibi günleri kapat. Var olan randevular iptal edilmez.</p>
             <div className="inline-form">
