@@ -62,14 +62,14 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
 
   const doReschedule = async (a: Appointment, c: RescheduleChoice) => {
     const ok = await run(
-      () => rescheduleAppointment(a.id, c.startIso, c.note),
+      () => rescheduleAppointment(a.id, c.startIso, c.note, c.allowProposal),
       `Randevu ${formatTime(c.startIso)} saatine ertelendi`,
       c.sendEmail ? { id: a.id, kind: 'rescheduled', force: true } : undefined,
     )
     if (!ok) return
     setReschedFor(null)
     if (c.sendPopup) {
-      sendReschedulePopup(a, c.startIso, c.note).catch((e) => toast(`Öğrenciye pop-up gönderilemedi: ${errMsg(e)}`, 'error'))
+      sendReschedulePopup(a, c.startIso, c.note, c.allowProposal).catch((e) => toast(`Öğrenciye pop-up gönderilemedi: ${errMsg(e)}`, 'error'))
     }
   }
 
@@ -112,7 +112,7 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                       <p className="appt-note">
                         Ertelendi · önceki saat: {formatDateLong(a.rescheduledFrom)} {formatTime(a.rescheduledFrom)}
                         {a.rescheduleNote ? ` · “${a.rescheduleNote}”` : ''}
-                        {a.studentProposedAt ? ' · saati öğrenci önerdi' : ''}
+                        {a.studentProposedAt ? ' · saati öğrenci önerdi' : a.allowProposal ? ' · öğrenci saat önerebilir' : ''}
                       </p>
                     )
                   )}

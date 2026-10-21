@@ -153,6 +153,8 @@ export interface ApptForMail {
   rescheduled_from: string | null
   reschedule_note: string | null
   cancel_reason: string | null
+  /** Yönetici ertelerken öğrencinin saat önermesine izin verdiyse */
+  allow_student_proposal?: boolean | null
 }
 
 export type ApptMailKind = 'confirmed' | 'rescheduled' | 'cancelled'
@@ -193,7 +195,9 @@ export function appointmentEmail(kind: ApptMailKind, a: ApptForMail, name: strin
           a.rescheduled_from
             ? `${fDate(a.rescheduled_from)} ${fTime(a.rescheduled_from)} tarihindeki randevun mentörün tarafından aşağıdaki yeni saate taşındı.`
             : 'Randevun mentörün tarafından aşağıdaki yeni saate taşındı.',
-          'Yeni saat sana uymuyorsa panelde Randevularım sayfasındaki “Saat belirle” butonuyla kendi saatini önerebilirsin.',
+          a.allow_student_proposal
+            ? 'Yeni saat sana uymuyorsa panelde Randevularım sayfasındaki “Saat belirle” butonuyla kendi saatini önerebilirsin.'
+            : 'Yeni saat sana uymuyorsa WhatsApp’tan bize yazman yeterli.',
         ],
         rows: [...rows, ['Google Meet', meet]],
         note: a.reschedule_note ? { label: 'Mentörünün notu', text: a.reschedule_note } : undefined,

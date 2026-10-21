@@ -150,6 +150,8 @@ alter table public.appointments add column if not exists rescheduled_from timest
 alter table public.appointments add column if not exists reschedule_note text;
 -- Öğrencinin saat önerisi (v0.11): ertelenen randevuda öğrenci bir kez kendi saatini önerebilir
 alter table public.appointments add column if not exists student_proposed_at timestamptz;
+-- Yönetici ertelerken öğrencinin saat önermesine izin verdi mi (v0.12)
+alter table public.appointments add column if not exists allow_student_proposal boolean not null default false;
 
 -- ---------------------------------------------------------------------
 -- DUYURULAR (v0.8): yöneticinin tüm öğrencilere pop-up mesajı; her öğrenci bir kez görür
@@ -540,7 +542,9 @@ end $$;
 
 -- Yönetici randevuyu yeni bir güne/saate erteler. Süre korunur, randevu onaylı olur,
 -- Google etkinliği bir sonraki senkronda yeni saate taşınır (google_synced_status sıfırlanır).
-create or replace function public.admin_reschedule_appointment(p_id uuid, p_start timestamptz, p_note text default '')
+-- v0.12: izin parametresi eklendi; eski 3 parametreli sürüm kaldırılır (aynı adla iki fonksiyon kalmasın)
+drop function if exists public.admin_reschedule_appointment(uuid, timestamptz, text);
+create or replace function public.admin_reschedule_appointment(p_id uuid, p_start timestamptz, p_note text default '', p_allow_proposal boolean default false)
 returns public.appointments
 language plpgsql security definer set search_path = public as $$
 declare a appointments; result appointments;
@@ -558,7 +562,8 @@ begin
       end_at = p_start + (a.end_at - a.start_at),
       status = 'confirmed',
       reschedule_note = nullif(left(trim(coalesce(p_note, '')), 300), ''),
-      student_proposed_at = null, -- yeni ertelemeden sonra öğrenci tekrar saat önerebilir
+      student_proposed_at = null, -- yeni ertelemeden sonra öğrenci tekrar saat önerebilir (izin verildiyse)
+      allow_student_proposal = coalesce(p_allow_proposal, false),
       google_synced_status = null
     where id = p_id returning * into result;
   exception when exclusion_violation then
@@ -567,29 +572,35 @@ begin
   return result;
 end $$;
 
--- Öğrenci, mentörün ertelediği randevuya uymuyorsa kendi saatini önerir (her ertelemeden sonra bir kez).
--- Kural: hafta içi sadece proposalWeekdayStart–proposalWeekdayEnd arası (varsayılan 18:30–20:30, görüşmenin tamamı),
--- hafta sonu her saat. Randevu yeni saate taşınır ve tekrar "onay bekliyor" olur; mentör onaylar ya da yeniden erteler.
+-- Öğrenci, mentörün ertelediği randevuya uymuyorsa kendi saatini önerir (mentör ertelerken izin verdiyse, her ertelemeden sonra bir kez).
+-- Geçerli saatler: (1) mentörün haftalık müsaitlik programındaki bir slot, ya da (2) elle saat:
+-- hafta içi sadece proposalWeekdayStart–proposalWeekdayEnd (varsayılan 18:30–20:30, görüşme aralıkta bitmeli), hafta sonu her saat.
+-- Randevu yeni saate taşınır ve tekrar "onay bekliyor" olur; mentör onaylar ya da yeniden erteler.
 create or replace function public.propose_my_time(p_id uuid, p_start timestamptz)
 returns public.appointments
 language plpgsql security definer set search_path = public as $$
 declare
-  a appointments; s jsonb; result appointments;
-  dur interval; loc timestamp; loc_end timestamp; mins int; mins_end int;
-  w_start int; w_end int; dkey date;
+  a appointments; s jsonb; result appointments; r jsonb;
+  dur interval; dur_min int; loc timestamp; loc_end timestamp; mins int;
+  slot int; step int; rs int; re int; w_start int; w_end int; dkey date;
+  in_schedule boolean := false;
 begin
   select * into a from appointments where id = p_id and student_id = auth.uid() for update;
   if a.id is null then raise exception 'Randevu bulunamadı.'; end if;
   if a.status not in ('pending', 'confirmed') then raise exception 'Bu randevu için saat önerilemez.'; end if;
-  if a.rescheduled_from is null then raise exception 'Saat önerisi sadece mentörünün ertelediği randevularda yapılabilir.'; end if;
+  if a.rescheduled_from is null or not a.allow_student_proposal then
+    raise exception 'Bu randevu için saat önerisi açık değil. Mentörünle WhatsApp’tan iletişime geç.';
+  end if;
   if a.student_proposed_at is not null then raise exception 'Bu randevu için zaten bir saat önerdin. Mentörünün cevabını bekle.'; end if;
   if p_start is null then raise exception 'Tarih ve saat seç.'; end if;
 
   select data into s from app_settings where id = 1;
   dur := a.end_at - a.start_at;
+  dur_min := (extract(epoch from dur) / 60)::int;
   loc := p_start at time zone 'Europe/Istanbul';
   loc_end := (p_start + dur) at time zone 'Europe/Istanbul';
   dkey := loc::date;
+  mins := extract(hour from loc)::int * 60 + extract(minute from loc)::int;
 
   if p_start < now() + make_interval(hours => coalesce((s ->> 'minNoticeHours')::int, 12)) then
     raise exception 'En az % saat sonrası için saat önerebilirsin.', coalesce((s ->> 'minNoticeHours')::int, 12);
@@ -598,16 +609,24 @@ begin
     raise exception 'En fazla % gün sonrası için saat önerebilirsin.', coalesce((s ->> 'maxDaysAhead')::int, 21);
   end if;
   if (s -> 'blockedDates') ? to_char(dkey, 'YYYY-MM-DD') then raise exception 'Mentörün bu gün müsait değil, başka bir gün seç.'; end if;
-  if extract(second from loc) <> 0 or extract(minute from loc)::int % 5 <> 0 then raise exception 'Saati 5 dakikalık aralıklarla seç (ör. 18:30, 18:35).'; end if;
+  if extract(second from loc) <> 0 or mins % 5 <> 0 then raise exception 'Saati 5 dakikalık aralıklarla seç (ör. 18:30, 18:35).'; end if;
   if p_start = a.start_at then raise exception 'Bu zaten randevunun şu anki saati.'; end if;
 
-  if extract(isodow from loc) between 1 and 5 then
+  -- (1) Müsaitlik programındaki bir slot mu?
+  slot := coalesce((s ->> 'slotMinutes')::int, 45);
+  step := slot + coalesce((s ->> 'bufferMinutes')::int, 15);
+  for r in select * from jsonb_array_elements(coalesce(s -> 'weekly' -> (extract(dow from loc)::int)::text, '[]'::jsonb)) loop
+    rs := _hhmm_to_min(r ->> 'start');
+    re := _hhmm_to_min(r ->> 'end');
+    if mins >= rs and mins + dur_min <= re and (mins - rs) % step = 0 then in_schedule := true; end if;
+  end loop;
+
+  -- (2) Değilse elle saat kuralı: hafta içi sadece belirlenen aralık, hafta sonu serbest
+  if not in_schedule and extract(isodow from loc) between 1 and 5 then
     w_start := _hhmm_to_min(coalesce(s ->> 'proposalWeekdayStart', '18:30'));
     w_end := _hhmm_to_min(coalesce(s ->> 'proposalWeekdayEnd', '20:30'));
-    mins := extract(hour from loc)::int * 60 + extract(minute from loc)::int;
-    mins_end := mins + (extract(epoch from dur) / 60)::int;
-    if loc_end::date <> dkey or mins < w_start or mins_end > w_end then
-      raise exception 'Hafta içi sadece % – % arası saat önerebilirsin (görüşme bu aralıkta bitmeli).',
+    if loc_end::date <> dkey or mins < w_start or mins + dur_min > w_end then
+      raise exception 'Hafta içi elle sadece % – % arası saat önerebilirsin (görüşme bu aralıkta bitmeli) ya da listedeki boş saatlerden birini seç.',
         coalesce(s ->> 'proposalWeekdayStart', '18:30'), coalesce(s ->> 'proposalWeekdayEnd', '20:30');
     end if;
   end if;
@@ -722,7 +741,7 @@ revoke execute on function public.mark_whatsapp_notified(uuid) from public, anon
 revoke execute on function public.update_my_profile(text, text, boolean) from public, anon;
 revoke execute on function public.admin_set_appointment_status(uuid, text, text) from public, anon;
 revoke execute on function public.admin_set_user_status(uuid, text) from public, anon;
-revoke execute on function public.admin_reschedule_appointment(uuid, timestamptz, text) from public, anon;
+revoke execute on function public.admin_reschedule_appointment(uuid, timestamptz, text, boolean) from public, anon;
 revoke execute on function public.propose_my_time(uuid, timestamptz) from public, anon;
 revoke execute on function public.busy_slots(timestamptz, timestamptz) from public, anon;
 grant execute on function public.book_appointment(timestamptz, text, text) to authenticated;
@@ -731,7 +750,7 @@ grant execute on function public.mark_whatsapp_notified(uuid) to authenticated;
 grant execute on function public.update_my_profile(text, text, boolean) to authenticated;
 grant execute on function public.admin_set_appointment_status(uuid, text, text) to authenticated;
 grant execute on function public.admin_set_user_status(uuid, text) to authenticated;
-grant execute on function public.admin_reschedule_appointment(uuid, timestamptz, text) to authenticated;
+grant execute on function public.admin_reschedule_appointment(uuid, timestamptz, text, boolean) to authenticated;
 grant execute on function public.propose_my_time(uuid, timestamptz) to authenticated;
 grant execute on function public.busy_slots(timestamptz, timestamptz) to authenticated;
 revoke execute on function public.replace_external_busy(jsonb) from public, anon, authenticated;

@@ -62,14 +62,12 @@ export function POST(request: Request): Promise<Response> {
         const kind = body.kind as ApptMailKind
         if (!UUID_RE.test(id) || !['confirmed', 'rescheduled', 'cancelled'].includes(kind)) throw new HttpError(400, 'Geçersiz istek.')
         if (!env.systemReady) return json({ sent: false, reason: 'not_configured' })
-        const read = async () =>
-          (
-            await sb
-              .from('appointments')
-              .select('code,start_at,end_at,topic,meet_link,rescheduled_from,reschedule_note,cancel_reason,student_id')
-              .eq('id', id)
-              .maybeSingle()
-          ).data
+        const cols = 'code,start_at,end_at,topic,meet_link,rescheduled_from,reschedule_note,cancel_reason,student_id'
+        const read = async () => {
+          // Şema henüz güncellenmediyse (allow_student_proposal yok) eski sütunlarla devam et
+          const r = await sb.from('appointments').select(`${cols},allow_student_proposal`).eq('id', id).maybeSingle()
+          return r.error ? (await sb.from('appointments').select(cols).eq('id', id).maybeSingle()).data : r.data
+        }
         let a = await read()
         if (!a) throw new HttpError(404, 'Randevu bulunamadı.')
         // Meet linki Google senkronunda oluşur: e-postada olsun diye kısa süre bekle (en fazla birkaç sn)

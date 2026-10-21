@@ -102,6 +102,7 @@ interface ApptRow {
   rescheduled_from?: string | null
   reschedule_note?: string | null
   student_proposed_at?: string | null
+  allow_student_proposal?: boolean | null
   created_at: string
   updated_at: string
 }
@@ -171,6 +172,7 @@ const toAppt = (r: ApptRow): Appointment => ({
   rescheduledFrom: r.rescheduled_from ? iso(r.rescheduled_from) : undefined,
   rescheduleNote: r.reschedule_note ?? undefined,
   studentProposedAt: r.student_proposed_at ?? undefined,
+  allowProposal: !!r.allow_student_proposal,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -636,9 +638,15 @@ export function canStudentCancel(a: Appointment, now = Date.now()) {
   )
 }
 
-/** Öğrenci, mentörün ertelediği randevuya kendi saatini önerebilir mi (her ertelemeden sonra bir kez) */
+/** Öğrenci, mentörün ertelediği randevuya kendi saatini önerebilir mi (yönetici izin verdiyse, her ertelemeden sonra bir kez) */
 export function canProposeTime(a: Appointment, now = Date.now()) {
-  return (a.status === 'pending' || a.status === 'confirmed') && !!a.rescheduledFrom && !a.studentProposedAt && new Date(a.end).getTime() > now
+  return (
+    (a.status === 'pending' || a.status === 'confirmed') &&
+    !!a.rescheduledFrom &&
+    a.allowProposal &&
+    !a.studentProposedAt &&
+    new Date(a.end).getTime() > now
+  )
 }
 
 /** Öğrencinin saat önerisi: randevu yeni saate taşınır ve tekrar "onay bekliyor" olur (kurallar SQL'de) */
@@ -677,9 +685,16 @@ export async function setAppointmentStatus(apptId: string, status: AppointmentSt
 }
 
 /** Yönetici randevuyu yeni gün/saate taşır (randevu onaylı olur, Google etkinliği de taşınır). */
-export async function rescheduleAppointment(apptId: string, startIso: string, note: string) {
+export async function rescheduleAppointment(apptId: string, startIso: string, note: string, allowProposal = false) {
   if (new Date(startIso).getTime() <= Date.now()) throw new AppError('Yeni tarih geçmişte olamaz.')
-  must(await supabase.rpc('admin_reschedule_appointment', { p_id: apptId, p_start: startIso, p_note: clean(note, 300) }))
+  must(
+    await supabase.rpc('admin_reschedule_appointment', {
+      p_id: apptId,
+      p_start: startIso,
+      p_note: clean(note, 300),
+      p_allow_proposal: allowProposal,
+    }),
+  )
   await refresh()
   kickSync(true)
 }
@@ -801,7 +816,7 @@ export async function createAnnouncement(title: string, body: string) {
 }
 
 /** Erteleme sonrası öğrenciye kişiye özel pop-up (öğrenci bir sonraki girişinde ya da hemen görür) */
-export async function sendReschedulePopup(appt: Appointment, newStartIso: string, note: string) {
+export async function sendReschedulePopup(appt: Appointment, newStartIso: string, note: string, allowProposal = false) {
   const durMs = new Date(appt.end).getTime() - new Date(appt.start).getTime()
   const newEnd = new Date(new Date(newStartIso).getTime() + durMs)
   const n = clean(note, 300)
@@ -812,7 +827,9 @@ export async function sendReschedulePopup(appt: Appointment, newStartIso: string
     `Önceki saat: ${formatDateLong(appt.start)} · ${formatTime(appt.start)}`,
     ...(n ? ['', `Mentörünün notu: ${n}`] : []),
     '',
-    'Yeni saat sana uymuyorsa Randevularım sayfasında “Saat belirle” ile kendi saatini önerebilirsin.',
+    allowProposal
+      ? 'Yeni saat sana uymuyorsa Randevularım sayfasında “Saat belirle” ile kendi saatini önerebilirsin.'
+      : 'Yeni saat sana uymuyorsa WhatsApp’tan bize yazabilirsin.',
   ].join('\n')
   must(
     await supabase.from('announcements').insert({

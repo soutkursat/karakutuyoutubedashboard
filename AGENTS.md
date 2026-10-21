@@ -41,10 +41,12 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
   kapatma 3 sn sonra açılır. `target_user` doluysa kişiye özel bildirimdir (ör. erteleme pop-up'ı, `sendReschedulePopup`),
   yönetici duyuru listesinde görünmez; `link` (sadece `/panel/...`) pop-up'a "git" butonu ekler.
 - Erteleme: `admin_reschedule_appointment` (SQL) → `rescheduled_from`, `reschedule_note`; Google etkinliği senkronda taşınır.
-- Öğrencinin saat önerisi: ertelenen randevuda öğrenci her ertelemeden sonra BİR KEZ "Saat belirle" ile saat önerir
-  (`propose_my_time` SQL, asıl kontrol; `ProposeTimeModal` arayüz). Hafta içi sadece `proposalWeekdayStart`–`proposalWeekdayEnd`
-  (varsayılan 18:30–20:30, görüşme aralıkta bitmeli), hafta sonu her saat. Randevu yeni saate taşınır ve `pending` olur;
-  `student_proposed_at` dolar, yönetici tekrar ertelerse sıfırlanır. Kural iki yerde birebir aynı olmalı.
+- Öğrencinin saat önerisi: yönetici ertelerken izin verirse (`allow_student_proposal`, Ertele penceresindeki anahtar) öğrenci
+  her ertelemeden sonra BİR KEZ "Saat belirle" ile saat önerir (`propose_my_time` SQL, asıl kontrol; `ProposeTimeModal` arayüz).
+  Geçerli saat: müsaitlik programındaki boş slot (hazır butonlar) YA DA elle saat — hafta içi sadece
+  `proposalWeekdayStart`–`proposalWeekdayEnd` (varsayılan 18:30–20:30, görüşme aralıkta bitmeli), hafta sonu her saat.
+  Randevu yeni saate taşınır ve `pending` olur; `student_proposed_at` dolar, yönetici tekrar ertelerse sıfırlanır.
+  Kural iki yerde birebir aynı olmalı.
 - `api/` altında göreli importlar `.js` uzantısıyla yazılır (`./_lib/server.js`), yoksa Vercel'de çalışmaz.
   `api/` kendi `api/tsconfig.json`'unu kullanır (Node tipleri); Vercel en yakın tsconfig'i aldığı için bunu silme.
 - Arayüz metinleri Türkçe.

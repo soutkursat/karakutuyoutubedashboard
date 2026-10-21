@@ -44,6 +44,8 @@ export interface Appointment {
   rescheduleNote?: string
   /** Öğrenci ertelemeye karşı kendi saatini önerdiyse ne zaman (her ertelemeden sonra bir kez) */
   studentProposedAt?: string
+  /** Yönetici ertelerken öğrencinin kendi saatini önermesine izin verdi mi */
+  allowProposal: boolean
   createdAt: string
   updatedAt: string
 }

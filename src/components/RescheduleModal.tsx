@@ -13,6 +13,8 @@ export interface RescheduleChoice {
   sendEmail: boolean
   /** Öğrenciye kişiye özel pop-up (panele girince görür) */
   sendPopup: boolean
+  /** Öğrenci bu saat uymazsa "Saat belirle" ile kendi saatini önerebilsin */
+  allowProposal: boolean
 }
 
 /**
@@ -33,6 +35,7 @@ export function RescheduleModal({ appt, busy, onClose, onSubmit }: { appt: Appoi
   const [note, setNote] = useState('')
   const [sendEmail, setSendEmail] = useState(settings.autoEmails)
   const [sendPopup, setSendPopup] = useState(true)
+  const [allowProposal, setAllowProposal] = useState(false)
 
   const free = day ? freeStartsOn(settings, day, getAppointments(), appt.id, duration, now) : []
   const startMs = day && isValidTime(time) ? toInstant(day, time).getTime() : NaN
@@ -58,7 +61,7 @@ export function RescheduleModal({ appt, busy, onClose, onSubmit }: { appt: Appoi
           <button
             className="btn btn-primary"
             disabled={busy || !canSave}
-            onClick={() => onSubmit(appt, { startIso: new Date(startMs).toISOString(), note, sendEmail, sendPopup })}
+            onClick={() => onSubmit(appt, { startIso: new Date(startMs).toISOString(), note, sendEmail, sendPopup, allowProposal })}
           >
             {busy ? 'Kaydediliyor…' : canSave ? `${formatTime(new Date(startMs))} saatine ertele` : 'Ertele'}
           </button>
@@ -134,6 +137,17 @@ export function RescheduleModal({ appt, busy, onClose, onSubmit }: { appt: Appoi
           placeholder="Ör. O gün başka bir görüşmem çıktı, kusura bakma."
         />
       </Field>
+
+      <label className="toggle-row">
+        <div>
+          <strong>Öğrenci kendi saatini önerebilsin</strong>
+          <p className="muted">
+            Bu saat uymazsa “Saat belirle” ile bir kez saat önerir: müsaitliğindeki boş saatler ya da elle hafta içi{' '}
+            {settings.proposalWeekdayStart}–{settings.proposalWeekdayEnd}, hafta sonu her saat. Öneri onayına düşer.
+          </p>
+        </div>
+        <Switch checked={allowProposal} label="Öğrenci kendi saatini önerebilsin" onChange={setAllowProposal} />
+      </label>
 
       <label className="toggle-row">
         <div>

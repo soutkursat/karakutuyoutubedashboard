@@ -193,8 +193,9 @@ export function AdminAvailability() {
           <section className="card glass">
             <h3 className="card-title">Öğrencinin saat önerisi</h3>
             <p className="muted small-text">
-              Bir randevuyu ertelediğinde, saat öğrenciye uymuyorsa “Saat belirle” ile bir kez kendi saatini önerebilir.
-              Hafta içi sadece bu aralıkta (görüşme aralık içinde bitmeli), hafta sonu her saat. Öneri “onay bekliyor” olarak düşer.
+              Ertelerken “Öğrenci kendi saatini önerebilsin” dersen, saat öğrenciye uymuyorsa “Saat belirle” ile bir kez saat önerir:
+              ya bu sayfadaki programındaki boş saatlerden birini seçer ya da elle yazar. Elle yazarken hafta içi sadece bu aralık
+              (görüşme aralık içinde bitmeli), hafta sonu her saat. Öneri “onay bekliyor” olarak düşer.
             </p>
             <div className="grid-2">
               <Field label="Hafta içi başlangıç">
