@@ -40,6 +40,9 @@ randevuları, müsaitliği, öğrencileri ve ayarları yönetir.
 - Duyurular: `announcements` + `announcement_reads` tabloları; öğrenci tarafında `AnnouncementGate` (AppShell) bir kez gösterir,
   kapatma 3 sn sonra açılır. `target_user` doluysa kişiye özel bildirimdir (ör. erteleme pop-up'ı, `sendReschedulePopup`),
   yönetici duyuru listesinde görünmez; `link` (sadece `/panel/...`) pop-up'a "git" butonu ekler.
+- Yöneticinin öğrenci adına randevusu: `admin_book_appointment` (SQL; onaylı başlar, saat serbest, sıklık kuralı uygulanmaz,
+  `booked_by_admin`), arayüz `AdminBookModal` (Öğrenciler sayfası: başlıktaki "Randevu" + öğrenci detayı). Sonra pop-up
+  (`sendCreatedPopup`) ve e-posta (`notifyByEmail(id, 'created')`). Öğrenciden WhatsApp bildirimi beklenmez.
 - Erteleme: `admin_reschedule_appointment` (SQL) → `rescheduled_from`, `reschedule_note`; Google etkinliği senkronda taşınır.
 - Öğrencinin saat önerisi: yönetici ertelerken izin verirse (`allow_student_proposal`, Ertele penceresindeki anahtar) öğrenci
   her ertelemeden sonra BİR KEZ "Saat belirle" ile saat önerir (`propose_my_time` SQL, asıl kontrol; `ProposeTimeModal` arayüz).

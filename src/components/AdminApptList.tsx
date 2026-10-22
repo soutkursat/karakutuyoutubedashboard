@@ -91,10 +91,11 @@ export function AdminApptList({ list, now }: { list: Appointment[]; now: number 
                   <p className="appt-sub">
                     <span className="chip static sm">{a.topic}</span>
                     {s && <span className="muted">{s.phone ? `${formatPhone(s.phone)} · ` : ''}{s.email}</span>}
+                    {a.bookedByAdmin && <span className="tag">Sen oluşturdun</span>}
                     {a.whatsappNotifiedAt ? (
                       <span className="tag tag-wa"><IconWhatsapp size={12} /> Bildirildi</span>
                     ) : (
-                      active && <span className="tag">WA bildirimi yok</span>
+                      active && !a.bookedByAdmin && <span className="tag">WA bildirimi yok</span>
                     )}
                   </p>
                   {a.note && <p className="appt-note">“{a.note}”</p>}

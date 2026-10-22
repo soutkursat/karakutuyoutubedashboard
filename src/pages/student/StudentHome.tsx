@@ -21,7 +21,8 @@ export function StudentHome() {
     .sort((a, b) => a.start.localeCompare(b.start))
   const next = upcoming[0]
   const completed = mine.filter((a) => a.status === 'completed').length
-  const unnotified = upcoming.filter((a) => !a.whatsappNotifiedAt)
+  // Mentörün oluşturduğu randevular için WhatsApp bildirimi gerekmez
+  const unnotified = upcoming.filter((a) => !a.whatsappNotifiedAt && !a.bookedByAdmin)
   const quota = computeQuota(user, getAppointments(), settings, now)
   const missing = [!user.phone && 'WhatsApp numaran', getChannels(user.id).length === 0 && 'YouTube kanal linkin'].filter(Boolean)
   const [proposing, setProposing] = useState(false)

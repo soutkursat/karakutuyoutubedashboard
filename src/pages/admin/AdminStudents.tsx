@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { AdminBookModal } from '../../components/AdminBookModal'
 import { ChannelRow } from '../../components/ChannelsCard'
 import { Empty, PageHeader, StatusBadge } from '../../components/Common'
 import { ComposeEmailModal } from '../../components/ComposeEmailModal'
 import { StudentFormModal } from '../../components/StudentFormModal'
-import { IconBan, IconCheck, IconEdit, IconMail, IconPlus, IconSearch, IconTrash, IconUsers, IconWhatsapp } from '../../components/Icons'
+import { IconBan, IconCalendarPlus, IconCheck, IconEdit, IconMail, IconPlus, IconSearch, IconTrash, IconUsers, IconWhatsapp } from '../../components/Icons'
 import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
 import { deleteStudent, getAppointments, getChannels, getSettings, getStudents, getUser, setUserStatus } from '../../lib/db'
@@ -35,6 +36,8 @@ export function AdminStudents() {
   const [edit, setEdit] = useState<User | 'new' | null>(null)
   const [del, setDel] = useState<User | null>(null)
   const [mailTo, setMailTo] = useState<{ users: User[]; scope: string } | null>(null)
+  /** Randevu oluştur penceresi: 'pick' = öğrenci listeden seçilir */
+  const [bookFor, setBookFor] = useState<User | 'pick' | null>(null)
   const [busy, setBusy] = useState(false)
 
   /** Sunucu işlemi: çift tıklamayı engelle, hatayı göster. Başarılıysa true. */
@@ -92,6 +95,9 @@ export function AdminStudents() {
               }
             >
               <IconMail size={18} /> E-posta gönder
+            </button>
+            <button className="btn btn-ghost" onClick={() => setBookFor('pick')} title="Bir öğrenci için randevu oluştur">
+              <IconCalendarPlus size={18} /> Randevu
             </button>
             <button className="btn btn-primary" onClick={() => open('new')}><IconPlus size={18} /> Öğrenci ekle</button>
           </>
@@ -173,6 +179,8 @@ export function AdminStudents() {
         </div>
       )}
 
+      {bookFor && <AdminBookModal key={bookFor === 'pick' ? 'pick' : bookFor.id} student={bookFor === 'pick' ? undefined : bookFor} onClose={() => setBookFor(null)} />}
+
       {mailTo && <ComposeEmailModal recipients={mailTo.users} scope={mailTo.scope} onClose={() => setMailTo(null)} />}
 
       {edit && <StudentFormModal key={edit === 'new' ? 'new' : edit.id} user={edit} onClose={() => setEdit(null)} />}
@@ -195,6 +203,11 @@ export function AdminStudents() {
               {detail.phone && (
                 <button className="btn btn-wa" onClick={() => openWhatsapp(waLink(detail.phone, `Merhaba ${detail.name.split(' ')[0]},`))}>
                   <IconWhatsapp size={16} /> WhatsApp
+                </button>
+              )}
+              {detail.status === 'active' && (
+                <button className="btn btn-ghost" onClick={() => { setDetailId(null); setBookFor(detail) }}>
+                  <IconCalendarPlus size={16} /> Randevu oluştur
                 </button>
               )}
               <button className="btn btn-ghost" onClick={() => setMailTo({ users: [detail], scope: detail.name })}>

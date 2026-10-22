@@ -102,6 +102,9 @@ export function MyAppointments() {
                       {a.rescheduleNote && !(a.studentProposedAt && a.status === 'pending') && <> · “{a.rescheduleNote}”</>}
                     </p>
                   )}
+                  {a.bookedByAdmin && !a.rescheduledFrom && a.status !== 'cancelled' && (
+                    <p className="resched-info">Bu randevuyu mentörün senin için oluşturdu.{a.note ? ` Not: “${a.note}”` : ''}</p>
+                  )}
                   {a.cancelReason && <p className="appt-note">Sebep: {a.cancelReason}</p>}
                 </>
               }
@@ -118,15 +121,17 @@ export function MyAppointments() {
                         <IconClock size={16} /> Saat belirle
                       </button>
                     )}
-                    <button
-                      className={cx('btn btn-sm', a.whatsappNotifiedAt ? 'btn-ghost' : 'btn-wa')}
-                      onClick={() => {
-                        openWhatsapp(waLink(settings.whatsappNumber, newBookingMessage(a, user)))
-                        void markWhatsappNotified(a.id)
-                      }}
-                    >
-                      <IconWhatsapp size={16} /> {a.whatsappNotifiedAt ? 'Tekrar bildir' : 'WhatsApp’tan bildir'}
-                    </button>
+                    {!a.bookedByAdmin && (
+                      <button
+                        className={cx('btn btn-sm', a.whatsappNotifiedAt ? 'btn-ghost' : 'btn-wa')}
+                        onClick={() => {
+                          openWhatsapp(waLink(settings.whatsappNumber, newBookingMessage(a, user)))
+                          void markWhatsappNotified(a.id)
+                        }}
+                      >
+                        <IconWhatsapp size={16} /> {a.whatsappNotifiedAt ? 'Tekrar bildir' : 'WhatsApp’tan bildir'}
+                      </button>
+                    )}
                     {canStudentCancel(a, now) ? (
                       <button className="btn btn-text btn-sm danger" onClick={() => setCancelling(a)}>
                         <IconX size={16} /> İptal et

@@ -157,7 +157,7 @@ export interface ApptForMail {
   allow_student_proposal?: boolean | null
 }
 
-export type ApptMailKind = 'confirmed' | 'rescheduled' | 'cancelled'
+export type ApptMailKind = 'confirmed' | 'created' | 'rescheduled' | 'cancelled'
 
 export function appointmentEmail(kind: ApptMailKind, a: ApptForMail, name: string, base: string) {
   const first = name.split(' ')[0] || name
@@ -179,6 +179,22 @@ export function appointmentEmail(kind: ApptMailKind, a: ApptForMail, name: strin
         title: 'Randevun onaylandı',
         greeting: `Merhaba ${first},`,
         paragraphs: ['Mentörlük randevun onaylandı. Görüşme Google Meet üzerinden yapılacak.'],
+        rows: [...rows, ['Google Meet', meet]],
+        cta: { label: 'Randevularımı gör', url: `${base}/panel/randevularim` },
+      }),
+    }
+  }
+  if (kind === 'created') {
+    return {
+      subject: `Senin için bir mentörlük randevusu oluşturuldu · ${fDate(a.start_at)} ${fTime(a.start_at)}`,
+      ...renderEmail({
+        preheader: `Mentörlük randevun: ${when}`,
+        title: 'Senin için randevu oluşturuldu',
+        greeting: `Merhaba ${first},`,
+        paragraphs: [
+          'Mentörün senin için bir mentörlük randevusu oluşturdu. Görüşme Google Meet üzerinden yapılacak.',
+          'Bu saat sana uymuyorsa WhatsApp’tan bize yazman yeterli.',
+        ],
         rows: [...rows, ['Google Meet', meet]],
         cta: { label: 'Randevularımı gör', url: `${base}/panel/randevularim` },
       }),

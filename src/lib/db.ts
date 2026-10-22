@@ -103,6 +103,7 @@ interface ApptRow {
   reschedule_note?: string | null
   student_proposed_at?: string | null
   allow_student_proposal?: boolean | null
+  booked_by_admin?: boolean | null
   created_at: string
   updated_at: string
 }
@@ -173,6 +174,7 @@ const toAppt = (r: ApptRow): Appointment => ({
   rescheduleNote: r.reschedule_note ?? undefined,
   studentProposedAt: r.student_proposed_at ?? undefined,
   allowProposal: !!r.allow_student_proposal,
+  bookedByAdmin: !!r.booked_by_admin,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -763,7 +765,7 @@ export async function sendTestEmail() {
   return callApi<{ to: string; results: { from: string; ok: boolean; error?: string }[] }>('/api/mail', { action: 'test' })
 }
 
-export type ApptMailKind = 'confirmed' | 'rescheduled' | 'cancelled'
+export type ApptMailKind = 'confirmed' | 'created' | 'rescheduled' | 'cancelled'
 /**
  * Randevu bildirimi (sistem@ adresinden). Ayarlarda kapalıysa ya da SMTP kurulmamışsa gönderilmez.
  * Dönen metin kullanıcıya gösterilecek kısa açıklamadır (boş = bir şey söyleme).
@@ -813,6 +815,43 @@ export async function createAnnouncement(title: string, body: string) {
   if (b.length > 2000) throw new AppError('Mesaj en fazla 2000 karakter olabilir.')
   must(await supabase.from('announcements').insert({ title: t, body: b, created_by: state.me?.id }))
   await refresh()
+}
+
+/** Yönetici öğrenci adına randevu oluşturur (onaylı başlar; saat serbest, çakışma kontrolü SQL'de) */
+export async function adminBookAppointment(studentId: string, startIso: string, topic: string, note: string): Promise<Appointment> {
+  const t = clean(topic, 80)
+  if (!t) throw new AppError('Görüşme konusunu seç.')
+  if (new Date(startIso).getTime() <= Date.now()) throw new AppError('Randevu saati geçmişte olamaz.')
+  const row = must(
+    await supabase
+      .rpc('admin_book_appointment', { p_student: studentId, p_start: startIso, p_topic: t, p_note: note.trim().slice(0, 600) })
+      .single<ApptRow>(),
+  )
+  await refresh()
+  kickSync(true)
+  return toAppt(row)
+}
+
+/** Yöneticinin oluşturduğu randevu için öğrenciye kişiye özel pop-up */
+export async function sendCreatedPopup(appt: Appointment) {
+  const body = [
+    'Mentörün senin için bir mentörlük randevusu oluşturdu.',
+    '',
+    `Tarih: ${formatDateLong(appt.start)} · ${formatTime(appt.start)} – ${formatTime(appt.end)}`,
+    `Konu: ${appt.topic}`,
+    ...(appt.note ? ['', `Not: ${appt.note}`] : []),
+    '',
+    'Google Meet linkin randevu saatinden önce Randevularım sayfasında olacak. Saat uymuyorsa WhatsApp’tan bize yaz.',
+  ].join('\n')
+  must(
+    await supabase.from('announcements').insert({
+      title: 'Senin için randevu oluşturuldu',
+      body,
+      target_user: appt.studentId,
+      link: '/panel/randevularim',
+      created_by: state.me?.id,
+    }),
+  )
 }
 
 /** Erteleme sonrası öğrenciye kişiye özel pop-up (öğrenci bir sonraki girişinde ya da hemen görür) */

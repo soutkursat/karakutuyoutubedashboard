@@ -152,6 +152,8 @@ alter table public.appointments add column if not exists reschedule_note text;
 alter table public.appointments add column if not exists student_proposed_at timestamptz;
 -- Yönetici ertelerken öğrencinin saat önermesine izin verdi mi (v0.12)
 alter table public.appointments add column if not exists allow_student_proposal boolean not null default false;
+-- Randevuyu yönetici öğrenci adına oluşturduysa (v0.13)
+alter table public.appointments add column if not exists booked_by_admin boolean not null default false;
 
 -- ---------------------------------------------------------------------
 -- DUYURULAR (v0.8): yöneticinin tüm öğrencilere pop-up mesajı; her öğrenci bir kez görür
@@ -481,6 +483,37 @@ begin
   return result;
 end $$;
 
+-- Yönetici öğrenci adına randevu oluşturur. Onaylı başlar; saat serbest (müsaitlik programı ve sıklık kuralı uygulanmaz),
+-- ama geçmiş, kapalı/askıdaki hesap ve çakışma kontrol edilir. Süre = görüşme süresi ayarı.
+create or replace function public.admin_book_appointment(p_student uuid, p_start timestamptz, p_topic text, p_note text default '')
+returns public.appointments
+language plpgsql security definer set search_path = public as $$
+declare st profiles; s jsonb; v_code text; result appointments;
+begin
+  if not is_admin() then raise exception 'Yetkin yok.'; end if;
+  select * into st from profiles where id = p_student;
+  if st.id is null or st.role <> 'student' then raise exception 'Öğrenci bulunamadı.'; end if;
+  if st.status <> 'active' then raise exception 'Bu öğrencinin hesabı askıda. Önce aktifleştir.'; end if;
+  if p_start is null or p_start < now() then raise exception 'Randevu saati geçmişte olamaz.'; end if;
+  p_topic := left(regexp_replace(trim(coalesce(p_topic, '')), '\s+', ' ', 'g'), 80);
+  if p_topic = '' then raise exception 'Görüşme konusunu seç.'; end if;
+  select data into s from app_settings where id = 1;
+  loop
+    v_code := 'KK-' || (select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + floor(random() * 32)::int, 1), '') from generate_series(1, 5));
+    exit when not exists (select 1 from appointments where code = v_code);
+  end loop;
+  begin
+    insert into appointments (code, student_id, start_at, end_at, topic, note, status, meet_link, booked_by_admin)
+    values (
+      v_code, st.id, p_start, p_start + make_interval(mins => coalesce((s ->> 'slotMinutes')::int, 45)),
+      p_topic, left(trim(coalesce(p_note, '')), 600), 'confirmed', nullif(s ->> 'defaultMeetLink', ''), true
+    ) returning * into result;
+  exception when exclusion_violation then
+    raise exception 'Bu saatte başka bir randevu var. Farklı bir saat seç.';
+  end;
+  return result;
+end $$;
+
 create or replace function public.cancel_my_appointment(p_id uuid, p_reason text)
 returns public.appointments
 language plpgsql security definer set search_path = public as $$
@@ -743,6 +776,7 @@ revoke execute on function public.admin_set_appointment_status(uuid, text, text)
 revoke execute on function public.admin_set_user_status(uuid, text) from public, anon;
 revoke execute on function public.admin_reschedule_appointment(uuid, timestamptz, text, boolean) from public, anon;
 revoke execute on function public.propose_my_time(uuid, timestamptz) from public, anon;
+revoke execute on function public.admin_book_appointment(uuid, timestamptz, text, text) from public, anon;
 revoke execute on function public.busy_slots(timestamptz, timestamptz) from public, anon;
 grant execute on function public.book_appointment(timestamptz, text, text) to authenticated;
 grant execute on function public.cancel_my_appointment(uuid, text) to authenticated;
@@ -752,6 +786,7 @@ grant execute on function public.admin_set_appointment_status(uuid, text, text) 
 grant execute on function public.admin_set_user_status(uuid, text) to authenticated;
 grant execute on function public.admin_reschedule_appointment(uuid, timestamptz, text, boolean) to authenticated;
 grant execute on function public.propose_my_time(uuid, timestamptz) to authenticated;
+grant execute on function public.admin_book_appointment(uuid, timestamptz, text, text) to authenticated;
 grant execute on function public.busy_slots(timestamptz, timestamptz) to authenticated;
 revoke execute on function public.replace_external_busy(jsonb) from public, anon, authenticated;
 revoke execute on function public.google_try_lock(int) from public, anon, authenticated;

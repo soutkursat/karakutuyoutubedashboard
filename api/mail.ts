@@ -60,7 +60,7 @@ export function POST(request: Request): Promise<Response> {
       case 'appointment': {
         const id = String(body.id ?? '')
         const kind = body.kind as ApptMailKind
-        if (!UUID_RE.test(id) || !['confirmed', 'rescheduled', 'cancelled'].includes(kind)) throw new HttpError(400, 'Geçersiz istek.')
+        if (!UUID_RE.test(id) || !['confirmed', 'created', 'rescheduled', 'cancelled'].includes(kind)) throw new HttpError(400, 'Geçersiz istek.')
         if (!env.systemReady) return json({ sent: false, reason: 'not_configured' })
         const cols = 'code,start_at,end_at,topic,meet_link,rescheduled_from,reschedule_note,cancel_reason,student_id'
         const read = async () => {

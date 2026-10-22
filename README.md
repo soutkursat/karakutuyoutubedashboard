@@ -120,6 +120,8 @@ npm run dev                  # http://localhost:5173
   kapatma butonu 3 saniye sonra açılır; kaç öğrencinin gördüğü listelenir
 - Müsaitlik: haftalık saat aralıkları, görüşme süresi, mola, min. bildirim süresi, ileri tarih limiti, kapalı günler
 - Öğrenciler: ekle, düzenle, şifre sıfırla, özel not, askıya al, sil
+- Öğrenci için randevu oluştur (Öğrenciler → sağ üstteki "Randevu" ya da öğrenci detayı): onaylı başlar, Meet linki,
+  öğrenciye pop-up + e-posta
 - Ayarlar: WhatsApp numarası, varsayılan Meet linki, otomatik onay, kayıt açık/kapalı, davet kodu, konu listesi, JSON dışa aktarma
 - Yeni randevular panele anında düşer (Supabase Realtime)
 

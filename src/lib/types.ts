@@ -46,6 +46,8 @@ export interface Appointment {
   studentProposedAt?: string
   /** Yönetici ertelerken öğrencinin kendi saatini önermesine izin verdi mi */
   allowProposal: boolean
+  /** Randevuyu yönetici öğrenci adına oluşturduysa */
+  bookedByAdmin: boolean
   createdAt: string
   updatedAt: string
 }
